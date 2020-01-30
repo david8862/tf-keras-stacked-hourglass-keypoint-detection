@@ -55,10 +55,12 @@ def main(args):
 
     # get train model
     model = get_hourglass_model(num_classes, args.num_stacks, num_channels, input_size, args.mobile)
+    print('Create {} Stacked Hourglass model with stack number {}, input size {}, channel number {}.'.format('Mobile' if args.mobile else '', args.num_stacks, input_size, num_channels))
     model.summary()
 
     if args.weights_path:
         model.load_weights(args.weights_path, by_name=True)#, skip_mismatch=True)
+        print('Load weights {}.'.format(args.weights_path))
 
     # support multi-gpu training
     template_model = None
