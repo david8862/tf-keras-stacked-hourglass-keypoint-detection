@@ -1,0 +1,15 @@
+head_top,upper_neck,r
+upper_neck,thorax,r
+thorax,plevis,r
+thorax,right_shoulder,r
+thorax,left_shoulder,b
+right_shoulder,right_elbow,r
+right_elbow,right_wrist,r
+left_shoulder,left_elbow,b
+left_elbow,left_wrist,b
+plevis,right_hip,r
+plevis,left_hip,b
+right_hip,right_knee,r
+right_knee,right_ankle,r
+left_hip,left_knee,b
+left_knee,left_ankle,b

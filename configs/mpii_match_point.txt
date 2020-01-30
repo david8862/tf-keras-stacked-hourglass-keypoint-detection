@@ -1,0 +1,6 @@
+right_ankle,left_ankle,h
+right_knee,left_knee,h
+right_hip,left_hip,h
+right_wrist,left_wrist,h
+right_elbow,left_elbow,h
+right_shoulder,left_shoulder,h
