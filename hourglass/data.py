@@ -101,17 +101,23 @@ class hourglass_dataset(object):
             if is_shuffle:
                 random.shuffle(self.annotations)
 
+            count = 0
             for i, annotation in enumerate(self.annotations):
                 # generate input image and ground truth heatmap
                 image, gt_heatmap, meta = self.process_image(i, annotation, sigma, rot_flag, scale_flag, h_flip_flag, v_flip_flag)
-                index = i % batch_size
 
+                # in case we got an empty image, bypass the sample
+                if image is None:
+                    continue
+
+                count = count + 1
+                index = count % batch_size
                 # form up batch data
                 batch_images[index, :, :, :] = image
                 batch_heatmaps[index, :, :, :] = gt_heatmap
                 batch_metainfo.append(meta)
 
-                if i % batch_size == (batch_size - 1):
+                if index == (batch_size - 1):
                     # need to feed each hg unit the same gt heatmap,
                     # so append a num_hgstack list
                     out_heatmaps = []
@@ -161,8 +167,14 @@ class hourglass_dataset(object):
         else:
             rot = 0
 
-        # crop out single person area, resize to inres and normalize image
+        # crop out single person area, resize to input size res and normalize image
         image = crop(image, center, scale, self.input_size, rot)
+
+        # in case we got an empty image, bypass the sample
+        if image is None:
+            return None, None, None
+
+        # normalize image
         image = normalize(image, self.get_color_mean())
 
         # transform keypoints to crop image reference

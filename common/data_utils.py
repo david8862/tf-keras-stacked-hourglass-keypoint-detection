@@ -87,6 +87,10 @@ def crop(img, center, scale, res, rot=0):
         new_img = np.array(Image.fromarray(new_img).rotate(rot))
         new_img = new_img[pad:-pad, pad:-pad]
 
+    if 0 in new_img.shape:
+        # in case we got a empty image
+        return None
+
     new_img = np.array(Image.fromarray(new_img).resize(res, Image.BICUBIC))
     return new_img
 
