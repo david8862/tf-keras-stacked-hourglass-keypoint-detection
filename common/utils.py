@@ -60,7 +60,7 @@ def get_matchpoints(matchpoint_path):
     return matchpoint_lines
 
 
-def render_skeleton(image, keypoints_dict, skeleton_lines=None, conf_threshold=0.1, colors=None):
+def render_skeleton(image, keypoints_dict, skeleton_lines=None, conf_threshold=0.001, colors=None):
     """
     Render keypoints skeleton on provided image with
     keypoints dict and skeleton lines definition.
