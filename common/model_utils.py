@@ -74,3 +74,17 @@ def get_optimizer(optim_type, learning_rate, decay_type='cosine', decay_steps=10
 
     return optimizer
 
+
+def get_normalize(input_size):
+    """
+    rescale keypoint distance normalize coefficient
+    based on input size, used for PCK evaluation
+
+    NOTE: 6.4 is standard normalize coefficient under
+          input size (256,256)
+    """
+    assert input_size[0] == input_size[1], 'only support square input size.'
+
+    scale = float(input_size[0]) / 256.0
+
+    return 6.4*scale

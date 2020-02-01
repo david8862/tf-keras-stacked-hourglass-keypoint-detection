@@ -110,12 +110,12 @@ class hourglass_dataset(object):
                 if image is None:
                     continue
 
-                count = count + 1
                 index = count % batch_size
                 # form up batch data
                 batch_images[index, :, :, :] = image
                 batch_heatmaps[index, :, :, :] = gt_heatmap
                 batch_metainfo.append(meta)
+                count = count + 1
 
                 if index == (batch_size - 1):
                     # need to feed each hg unit the same gt heatmap,

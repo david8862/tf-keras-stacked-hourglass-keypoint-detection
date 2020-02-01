@@ -29,10 +29,12 @@ def main(args):
     # choose model type
     if args.tiny:
         num_channels = 128
-        input_size = (192, 192)
+        #input_size = (192, 192)
     else:
         num_channels = 256
-        input_size = (256, 256)
+        #input_size = (256, 256)
+
+    input_size = args.model_image_size
 
     # get train/val dataset
     train_dataset = hourglass_dataset(args.dataset_path, class_names,
@@ -53,9 +55,9 @@ def main(args):
     #optimizer = RMSprop(lr=5e-4)
     optimizer = get_optimizer(args.optimizer, args.learning_rate, decay_type=None)
 
-    # get train model
-    model = get_hourglass_model(num_classes, args.num_stacks, num_channels, input_size, args.mobile)
-    print('Create {} Stacked Hourglass model with stack number {}, input size {}, channel number {}.'.format('Mobile' if args.mobile else '', args.num_stacks, input_size, num_channels))
+    # get train model, doesn't specify input size
+    model = get_hourglass_model(num_classes, args.num_stacks, num_channels, mobile=args.mobile)
+    print('Create {} Stacked Hourglass model with stack number {}, channel number {}. train input size {}'.format('Mobile' if args.mobile else '', args.num_stacks, num_channels, input_size))
     model.summary()
 
     if args.weights_path:
@@ -98,7 +100,9 @@ if __name__ == "__main__":
     parser.add_argument("--mobile", default=False, action="store_true",
         help="use depthwise conv in hourglass'")
     parser.add_argument("--tiny", default=False, action="store_true",
-        help="tiny network for speed, input_size=[192x192], channel=128")
+        help="tiny network for speed, feature channel=128")
+    parser.add_argument('--model_image_size', type=str, required=False, default='256x256',
+        help = "model image input size as <num>x<num>, default 256x256")
     parser.add_argument('--weights_path', type=str, required=False, default=None,
         help = "Pretrained model/weights file for fine tune")
 
@@ -125,5 +129,7 @@ if __name__ == "__main__":
         help='Number of GPU to use, default=1')
 
     args = parser.parse_args()
+    height, width = args.model_image_size.split('x')
+    args.model_image_size = (int(height), int(width))
 
     main(args)

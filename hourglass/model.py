@@ -7,14 +7,18 @@ from tensorflow.keras.models import Model
 from hourglass.blocks import create_front_module, hourglass_module, bottleneck_block, bottleneck_mobile
 
 
-def get_hourglass_model(num_classes, num_stacks, num_channels, input_size, mobile):
+def get_hourglass_model(num_classes, num_stacks, num_channels, input_size=None, mobile=False):
     # whether to use depthwise conv use choose model type
     if mobile:
         bottleneck = bottleneck_mobile
     else:
         bottleneck = bottleneck_block
 
-    input_tensor = Input(shape=(input_size[0], input_size[1], 3), name='image_input')
+    #prepare input tensor
+    if input_size:
+        input_tensor = Input(shape=(input_size[0], input_size[1], 3), name='image_input')
+    else:
+        input_tensor = Input(shape=(None, None, 3), name='image_input')
 
     # front module, input to 1/4 resolution
     front_features = create_front_module(input_tensor, num_channels, bottleneck)

@@ -31,26 +31,59 @@ Install requirements on Ubuntu 16.04/18.04:
 
             ```
             Images will be placed at `data/mpii/images`
-        * Download MPII annotation json file to `data/mpii` and rename to "annotations.json":
 
     2. MSCOCO Keypoints 2014/2017 Dataset
-        * Download & extract MSCOCO train/val dataset image package to `data/mscoco_2014(2017)`:
+        * Download & extract MSCOCO train/val image package and annotation package to `data/mscoco_2014(2017)`:
             ```
             # mkdir -p data/mscoco_2014
             # cd data/mscoco_2014
             # wget http://images.cocodataset.org/zips/train2014.zip
             # wget http://images.cocodataset.org/zips/val2014.zip
+            # wget http://images.cocodataset.org/annotations/annotations_trainval2014.zip
             # unzip train2014.zip -d images
             # unzip val2014.zip -d images
+            # unzip annotations_trainval2014.zip
             #
             # mkdir -p data/mscoco_2017
             # cd ../data/mscoco_2017
             # wget http://images.cocodataset.org/zips/train2017.zip
             # wget http://images.cocodataset.org/zips/val2017.zip
+            # wget http://images.cocodataset.org/annotations/annotations_trainval2017.zip
             # unzip train2017.zip -d images
             # unzip val2017.zip -d images
+            # unzip annotations_trainval2017.zip
             ```
-        * Download MSCOCO [2014](https://drive.google.com/open?id=1jrxis4ujrLlkwoD2GOdv3PGzygpQ04k7)/[2017](https://drive.google.com/open?id=1YuzpScAfzemwZqUuZBrbBZdoplXEqUse) annotation json file to `data/mscoco_2014(2017)` and rename to "annotations.json"
+        * use [coco_annotation.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/tools/coco_annotation.py) to generate our annotation json file "annotations.json" from official annotation:
+            ```
+            # cd tools && python coco_annotation.py -h
+            usage: coco_annotation.py [-h] --train_anno_path TRAIN_ANNO_PATH
+                                      --val_anno_path VAL_ANNO_PATH
+                                      [--output_anno_path OUTPUT_ANNO_PATH]
+                                      [--output_class_path OUTPUT_CLASS_PATH]
+                                      [--output_skeleton_path OUTPUT_SKELETON_PATH]
+
+            Parse MSCOCO keypoint annotation to our annotation files
+
+            optional arguments:
+              -h, --help            show this help message and exit
+              --train_anno_path TRAIN_ANNO_PATH
+                                    MSCOCO keypoint train annotation file path
+              --val_anno_path VAL_ANNO_PATH
+                                    MSCOCO keypoint val annotation file path
+              --output_anno_path OUTPUT_ANNO_PATH
+                                    generated annotation json file path, default is
+                                    ./annotations.json
+              --output_class_path OUTPUT_CLASS_PATH
+                                    generated keypoint classes txt file path, default is
+                                    ./coco_classes.txt
+              --output_skeleton_path OUTPUT_SKELETON_PATH
+                                    generated keypoint skeleton txt file path, default is
+                                    ./coco_skeleton.txt
+
+            # python coco_annotation.py --train_anno_path=../data/mscoco_2017/annotations/person_keypoints_train2017.json --val_anno_path=../data/mscoco_2017/annotations/person_keypoints_val2017.json --output_anno_path=../data/mscoco_2017/annotations.json
+            ```
+
+        * (Optional) Download MSCOCO [2014](https://drive.google.com/open?id=1jrxis4ujrLlkwoD2GOdv3PGzygpQ04k7)/[2017](https://drive.google.com/open?id=1YuzpScAfzemwZqUuZBrbBZdoplXEqUse) annotation json file to `data/mscoco_2014(2017)` and rename to "annotations.json"
 
     3. Customized keypoint dataset
         * Collecting your keypoint images and place to `data/<dataset_name>/images`
@@ -81,6 +114,7 @@ Install requirements on Ubuntu 16.04/18.04:
 ```
 # python train.py -h
 usage: train.py [-h] [--num_stacks NUM_STACKS] [--mobile] [--tiny]
+                [--model_image_size MODEL_IMAGE_SIZE]
                 [--weights_path WEIGHTS_PATH] [--dataset_path DATASET_PATH]
                 [--classes_path CLASSES_PATH]
                 [--matchpoint_path MATCHPOINT_PATH] [--batch_size BATCH_SIZE]
@@ -93,8 +127,9 @@ optional arguments:
   --num_stacks NUM_STACKS
                         number of hourglass stacks, default=2
   --mobile              use depthwise conv in hourglass'
-  --tiny                tiny network for speed, input_size=[192x192],
-                        channel=128
+  --tiny                tiny network for speed, feature channel=128
+  --model_image_size MODEL_IMAGE_SIZE
+                        model image input size as <num>x<num>, default 256x256
   --weights_path WEIGHTS_PATH
                         Pretrained model/weights file for fine tune
   --dataset_path DATASET_PATH
@@ -168,7 +203,7 @@ For video detection mode, you can use "input=0" to capture live video from web c
 
 
 ### Evaluation
-Use [eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/eval.py) to do evaluation on the inference model with your test dataset. Currently it support PCK (Percentage of Correct Keypoints) metric with fixed normalize coefficient (by default 6.4) on different score threshold. You can also use `--save_result` to save all the detection result on evaluation dataset as images and `--skeleton_path` to draw keypoint skeleton on images:
+Use [eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/eval.py) to do evaluation on the inference model with your test dataset. Currently it support PCK (Percentage of Correct Keypoints) metric with standard normalize coefficient (by default 6.4 under input_size=(256,256)) on different score threshold. You can also use `--save_result` to save all the detection result on evaluation dataset as images and `--skeleton_path` to draw keypoint skeleton on images:
 
 ```
 # python eval.py --model_path=model.h5 --dataset_path=data/mscoco_2017/ --classes_path=configs/coco_classes.txt --save_result --skeleton_path=configs/coco_skeleton.txt

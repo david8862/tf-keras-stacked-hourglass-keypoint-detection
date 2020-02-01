@@ -18,6 +18,7 @@ from tqdm import tqdm
 from hourglass.data import hourglass_dataset
 from hourglass.postprocess import post_process_heatmap
 from common.data_utils import invert_transform_kp
+from common.model_utils import get_normalize
 from common.utils import touchdir, get_classes, get_skeleton, render_skeleton
 
 
@@ -456,9 +457,9 @@ def main():
         '--score_threshold', type=float,
         help='score threshold for PCK evaluation, default=0.5', default=0.5)
 
-    parser.add_argument(
-        '--normalize', type=float,
-        help='normalized coefficient of keypoint distance for PCK evaluation , default=6.4', default=6.4)
+    #parser.add_argument(
+        #'--normalize', type=float,
+        #help='normalized coefficient of keypoint distance for PCK evaluation , default=6.4', default=6.4)
 
     parser.add_argument(
         '--conf_threshold', type=float,
@@ -487,13 +488,14 @@ def main():
     class_names = get_classes(args.classes_path)
     height, width = args.model_image_size.split('x')
     model_image_size = (int(height), int(width))
+    normalize = get_normalize(model_image_size)
 
     model, model_format = load_eval_model(args.model_path)
 
     eval_dataset = hourglass_dataset(args.dataset_path, class_names,
                               input_size=model_image_size, is_train=False)
 
-    total_accuracy, accuracy_dict = eval_PCK(model, model_format, eval_dataset, class_names, args.score_threshold, args.normalize, args.conf_threshold, args.save_result, skeleton_lines)
+    total_accuracy, accuracy_dict = eval_PCK(model, model_format, eval_dataset, class_names, args.score_threshold, normalize, args.conf_threshold, args.save_result, skeleton_lines)
 
     print('\nPCK evaluation')
     for (class_name, accuracy) in accuracy_dict.items():

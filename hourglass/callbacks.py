@@ -4,6 +4,7 @@ import os, sys
 from tqdm import tqdm
 from tensorflow.keras.callbacks import Callback
 from hourglass.postprocess import post_process_heatmap
+from common.model_utils import get_normalize
 from eval import eval_PCK
 
 
@@ -12,11 +13,11 @@ class EvalCallBack(Callback):
         self.log_dir = log_dir
         self.val_dataset = val_dataset
         self.class_names = class_names
-        self.input_size = input_size
+        self.normalize = get_normalize(input_size)
         self.best_accuray = 0.0
 
     def on_epoch_end(self, epoch, logs=None):
-        val_acc, _ = eval_PCK(self.model, 'H5', self.val_dataset, self.class_names, score_threshold=0.5, normalize=6.4, conf_threshold=1e-6, save_result=False)
+        val_acc, _ = eval_PCK(self.model, 'H5', self.val_dataset, self.class_names, score_threshold=0.5, normalize=self.normalize, conf_threshold=1e-6, save_result=False)
         print('validate accuray', val_acc, '@epoch', epoch)
 
         # record accuracy for every epoch to draw training curve

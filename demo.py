@@ -19,7 +19,7 @@ default_config = {
         "num_stacks": 2,
         "mobile" : False,
         "tiny" : False,
-        "input_size": (256, 256),
+        "model_image_size": (256, 256),
         "num_channels": 256,
         "conf_threshold": 0.1,
         "classes_path": 'configs/mpii_classes.txt',
@@ -60,21 +60,20 @@ class Hourglass(object):
 
         # update param for tiny model
         if self.tiny is True:
-            self.input_size = (192, 192)
             self.num_channels = 128
 
         # construct model and load weights.
-        hourglass_model = get_hourglass_model(num_classes, self.num_stacks, self.num_channels, self.input_size, mobile=self.mobile)
+        hourglass_model = get_hourglass_model(num_classes, self.num_stacks, self.num_channels, input_size=self.model_image_size, mobile=self.mobile)
         hourglass_model.load_weights(weights_path, by_name=True)#, skip_mismatch=True)
         hourglass_model.summary()
         return hourglass_model
 
 
     def detect_image(self, image):
-        image_data = preprocess_image(image, self.input_size)
+        image_data = preprocess_image(image, self.model_image_size)
 
         image_size = image.size
-        scale = (image_size[0] * 1.0 / self.input_size[0], image_size[1] * 1.0 / self.input_size[1])
+        scale = (image_size[0] * 1.0 / self.model_image_size[0], image_size[1] * 1.0 / self.model_image_size[1])
 
         start = time.time()
         keypoints = self.predict(image_data)
@@ -185,7 +184,13 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         '--tiny', default=False, action="store_true",
-        help='tiny network for speed, input_size=[192x192], channel=128, default ' + str(Hourglass.get_defaults("tiny"))
+        help='tiny network for speed, feature channel=128, default ' + str(Hourglass.get_defaults("tiny"))
+    )
+    parser.add_argument(
+        '--model_image_size', type=str,
+        help='model image input size as <num>x<num>, default ' +
+        str(Hourglass.get_defaults("model_image_size")[0])+'x'+str(Hourglass.get_defaults("model_image_size")[1]),
+        default=str(Hourglass.get_defaults("model_image_size")[0])+'x'+str(Hourglass.get_defaults("model_image_size")[1])
     )
     parser.add_argument(
         '--weights_path', type=str,
@@ -233,6 +238,10 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    # param parse
+    if args.model_image_size:
+        height, width = args.model_image_size.split('x')
+        args.model_image_size = (int(height), int(width))
 
     # get wrapped inference object
     hourglass = Hourglass(**vars(args))
