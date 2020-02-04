@@ -2,7 +2,6 @@
 # -*- coding=utf-8 -*-
 """Miscellaneous utility functions."""
 
-#from PIL import Image
 import numpy as np
 import os, cv2, colorsys
 from matplotlib.colors import rgb_to_hsv, hsv_to_rgb
@@ -42,6 +41,17 @@ def get_classes(classes_path):
         class_names = f.readlines()
     class_names = [c.strip() for c in class_names]
     return class_names
+
+
+def get_model_type(num_stacks, mobile, tiny, input_size):
+    mobile_str = 'mobile_' if mobile else ''
+    tiny_str = 'tiny_' if tiny else ''
+
+    model_type = 'hg_s' + str(num_stacks) + '_' \
+                 + mobile_str \
+                 + tiny_str \
+                 + str(input_size[0]) + '_' + str(input_size[1])
+    return model_type
 
 
 def get_skeleton(skeleton_path):

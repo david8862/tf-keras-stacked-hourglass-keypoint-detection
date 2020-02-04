@@ -8,7 +8,6 @@ from common.data_utils import crop, horizontal_flip, vertical_flip, normalize, t
 
 
 class hourglass_dataset(object):
-
     def __init__(self, dataset_path, class_names, input_size, is_train, matchpoints=None):
         self.jsonfile = os.path.join(dataset_path, 'annotations.json')
         self.imgpath = os.path.join(dataset_path, 'images')
@@ -18,6 +17,7 @@ class hourglass_dataset(object):
         # output heatmap size is 1/4 of input size
         self.output_size = (self.input_size[0]//4, self.input_size[1]//4)
         self.is_train = is_train
+        self.dataset_name = None
         self.annotations = self._load_image_annotation()
         self.horizontal_matchpoints, self.vertical_matchpoints = self._get_matchpoint_list(matchpoints)
 
@@ -63,6 +63,10 @@ class hourglass_dataset(object):
         val_annotation, train_annotation = [], []
         # put to train or val annotation list
         for idx, val in enumerate(annotations):
+            # record dataset name
+            if self.dataset_name is None:
+                self.dataset_name = val['dataset']
+
             if val['isValidation'] == True:
                 val_annotation.append(annotations[idx])
             else:
@@ -72,6 +76,9 @@ class hourglass_dataset(object):
             return train_annotation
         else:
             return val_annotation
+
+    def get_dataset_name(self):
+        return str(self.dataset_name)
 
     def get_dataset_size(self):
         return len(self.annotations)

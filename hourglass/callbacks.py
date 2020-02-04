@@ -9,12 +9,16 @@ from eval import eval_PCK
 
 
 class EvalCallBack(Callback):
-    def __init__(self, log_dir, val_dataset, class_names, input_size):
+    def __init__(self, log_dir, val_dataset, class_names, input_size, model_type):
         self.log_dir = log_dir
         self.val_dataset = val_dataset
         self.class_names = class_names
         self.normalize = get_normalize(input_size)
         self.best_accuray = 0.0
+
+        # record model & dataset name to draw training curve
+        with open(os.path.join(self.log_dir, 'val.txt'), 'a+') as xfile:
+            xfile.write('model:' + model_type + ';dataset:' + val_dataset.get_dataset_name() + '\n')
 
     def on_epoch_end(self, epoch, logs=None):
         val_acc, _ = eval_PCK(self.model, 'H5', self.val_dataset, self.class_names, score_threshold=0.5, normalize=self.normalize, conf_threshold=1e-6, save_result=False)
