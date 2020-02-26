@@ -8,7 +8,7 @@ An end-to-end single-object keypoint estimation pipeline with Stacked-Hourglass 
 
 - [x] Standard stacked hourglass model
 - [x] Mobile stacked hourglass model (using depthwise separable conv)
-- [x] Tiny stacked hourglass model (using 192x192 input size and 128 feature channels)
+- [x] Tiny stacked hourglass model (128 feature channels)
 - [x] Configuable stack number
 
 
@@ -171,6 +171,12 @@ You can also use Tensorboard to monitor the loss trend during train:
 
 MultiGPU usage: use `--gpu_num N` to use N GPUs. It is passed to the [Keras multi_gpu_model()](https://keras.io/utils/#multi_gpu_model).
 
+Some val_accuracy curves during training MSCOCO Keypoints 2017 Dataset. Chart can be created with [draw_train_curve.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/tools/draw_train_curve.py) and use recorded logs/val.txt during train:
+
+<p align="center">
+  <img src="assets/accuracy.jpg">
+</p>
+
 ### Model dump
 We need to dump out inference model from training checkpoint for eval or demo. Following script cmd work for that.
 
@@ -201,6 +207,12 @@ video detection mode
 ```
 For video detection mode, you can use "input=0" to capture live video from web camera and "output=<video name>" to dump out detection result to another video
 
+keypoint detection sample:
+
+<p align="center">
+  <img src="assets/ride_keypoints.jpg">
+  <img src="assets/girl_keypoints.jpg">
+</p>
 
 ### Evaluation
 Use [eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/eval.py) to do evaluation on the inference model with your test dataset. Currently it support PCK (Percentage of Correct Keypoints) metric with standard normalize coefficient (by default 6.4 under input_size=(256,256)) on different score threshold. You can also use `--save_result` to save all the detection result on evaluation dataset as images and `--skeleton_path` to draw keypoint skeleton on images:
