@@ -10,13 +10,13 @@ from common.data_utils import crop, horizontal_flip, vertical_flip, normalize, t
 class hourglass_dataset(object):
     def __init__(self, dataset_path, class_names, input_size, is_train, matchpoints=None):
         self.jsonfile = os.path.join(dataset_path, 'annotations.json')
+        self.is_train = is_train
         self.imgpath = os.path.join(dataset_path, 'images')
         self.class_names = class_names
         self.num_classes = len(class_names)
         self.input_size = input_size
         # output heatmap size is 1/4 of input size
         self.output_size = (self.input_size[0]//4, self.input_size[1]//4)
-        self.is_train = is_train
         self.dataset_name = None
         self.annotations = self._load_image_annotation()
         self.horizontal_matchpoints, self.vertical_matchpoints = self._get_matchpoint_list(matchpoints)
@@ -96,10 +96,6 @@ class hourglass_dataset(object):
         Input:  batch_size * input_size  * Channel (3)
         Output: batch_size * oures  * num_classes
         '''
-        batch_images = np.zeros(shape=(batch_size, self.input_size[0], self.input_size[1], 3), dtype=np.float)
-        batch_heatmaps = np.zeros(shape=(batch_size, self.output_size[0], self.output_size[1], self.num_classes), dtype=np.float)
-        batch_metainfo = list()
-
         if not self.is_train:
             assert (is_shuffle == False), 'shuffle must be off in val model'
             assert (rot_flag == False), 'rot_flag must be off in val model'
@@ -107,6 +103,10 @@ class hourglass_dataset(object):
         while True:
             if is_shuffle:
                 random.shuffle(self.annotations)
+
+            batch_images = np.zeros(shape=(batch_size, self.input_size[0], self.input_size[1], 3), dtype=np.float)
+            batch_heatmaps = np.zeros(shape=(batch_size, self.output_size[0], self.output_size[1], self.num_classes), dtype=np.float)
+            batch_metainfo = list()
 
             count = 0
             for i, annotation in enumerate(self.annotations):
@@ -139,11 +139,12 @@ class hourglass_dataset(object):
 
     def process_image(self, sample_index, annotation, sigma, rot_flag, scale_flag, h_flip_flag, v_flip_flag):
         imagefile = os.path.join(self.imgpath, annotation['img_paths'])
-        image = Image.open(imagefile)
+        img = Image.open(imagefile)
         # make sure image is in RGB mode with 3 channels
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
-        image = np.asarray(image)
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        image = np.array(img)
+        img.close()
 
         # get center, joints and scale
         # center, joints point format: (x, y)

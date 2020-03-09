@@ -39,8 +39,8 @@ def main(args):
     # get train/val dataset
     train_dataset = hourglass_dataset(args.dataset_path, class_names,
                                 input_size=input_size, is_train=True, matchpoints=matchpoints)
-    val_dataset = hourglass_dataset(args.dataset_path, class_names,
-                              input_size=input_size, is_train=False)
+    #val_dataset = hourglass_dataset(args.dataset_path, class_names,
+                              #input_size=input_size, is_train=False)
 
     train_gen = train_dataset.generator(args.batch_size, args.num_stacks, sigma=1, is_shuffle=True,
                                         rot_flag=True, scale_flag=True, h_flip_flag=True, v_flip_flag=True)
@@ -49,7 +49,7 @@ def main(args):
 
     # callbacks for training process
     tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=0, write_graph=False, write_grads=False, write_images=False, update_freq='batch')
-    eval_callback = EvalCallBack(log_dir, val_dataset, class_names, input_size, model_type)
+    eval_callback = EvalCallBack(log_dir, args.dataset_path, class_names, input_size, model_type)
     terminate_on_nan = TerminateOnNaN()
     callbacks = [tensorboard, eval_callback, terminate_on_nan]
 
