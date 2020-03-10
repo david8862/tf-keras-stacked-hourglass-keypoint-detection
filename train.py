@@ -39,8 +39,6 @@ def main(args):
     # get train/val dataset
     train_dataset = hourglass_dataset(args.dataset_path, class_names,
                                 input_size=input_size, is_train=True, matchpoints=matchpoints)
-    #val_dataset = hourglass_dataset(args.dataset_path, class_names,
-                              #input_size=input_size, is_train=False)
 
     train_gen = train_dataset.generator(args.batch_size, args.num_stacks, sigma=1, is_shuffle=True,
                                         rot_flag=True, scale_flag=True, h_flip_flag=True, v_flip_flag=True)

@@ -102,9 +102,9 @@ Install requirements on Ubuntu 16.04/18.04:
             Put the annotation file to `data/<dataset_name>` and rename to "annotations.json"
         * Create keypoint config file: classes name file, match point file
 
-            * Classes name file format could refer to  [coco_classes.txt](https://github.com/david8862/keras-YOLOv3-model-set/blob/master/configs/coco_classes.txt). Keypoint order should be aligned with "joint_self" field in annotation json file
+            * Classes name file format could refer to  [coco_classes.txt](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/configs/coco_classes.txt). Keypoint order should be aligned with "joint_self" field in annotation json file
 
-            * Match point file format could refer to  [coco_match_point.txt](https://github.com/david8862/keras-YOLOv3-model-set/blob/master/configs/coco_classes.txt). It's used in horizontal/vertical flipping of input image & keypoints for data augment:
+            * Match point file format could refer to  [coco_match_point.txt](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/configs/coco_match_point.txt). It's used in horizontal/vertical flipping of input image & keypoints for data augment:
                 * One row for one pair of matched keypoints in annotation file;
                 * Row format: `key_point_name1,key_point_name2,flip_type` (no space). Keypoint name should be aligned with classes name file;
                 * Flip type: h-horizontal; v-vertical.
@@ -207,7 +207,7 @@ video detection mode
 ```
 For video detection mode, you can use "input=0" to capture live video from web camera and "output=<video name>" to dump out detection result to another video
 
-keypoint detection sample:
+MSCOCO keypoints detection sample:
 
 <p align="center">
   <img src="assets/ride_keypoints.jpg">
