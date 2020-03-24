@@ -215,10 +215,27 @@ MSCOCO keypoints detection sample:
 </p>
 
 ### Evaluation
-Use [eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/eval.py) to do evaluation on the inference model with your test dataset. Currently it support PCK (Percentage of Correct Keypoints) metric with standard normalize coefficient (by default 6.4 under input_size=(256,256)) on different score threshold. You can also use `--save_result` to save all the detection result on evaluation dataset as images and `--skeleton_path` to draw keypoint skeleton on images:
+Use [eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/eval.py) to do evaluation on the inference model with your test dataset. Currently it support PCK (Percentage of Correct Keypoints) metric with standard normalize coefficient (by default 6.4 under input_size=(256,256)) on different score threshold. By default it will generate a MSCOCO format keypoints detection result json file `result/keypoints_result.json` ([format](http://cocodataset.org/#format-results)). You can also use `--save_result` to save all the detection result on evaluation dataset as images and `--skeleton_path` to draw keypoint skeleton on images:
 
 ```
 # python eval.py --model_path=model.h5 --dataset_path=data/mscoco_2017/ --classes_path=configs/coco_classes.txt --save_result --skeleton_path=configs/coco_skeleton.txt
+```
+
+For MSCOCO dataset, you can use [pycoco_eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/tree/master/tools/pycoco_eval.py) with the generated result json and COCO GT annotation to get official COCO AP with [pycocotools](https://github.com/cocodataset/cocoapi/tree/master/PythonAPI/pycocotools):
+
+```
+# cd tools && python pycoco_eval.py -h
+usage: pycoco_eval.py [-h] --coco_result_json COCO_RESULT_JSON
+                      --coco_annotation_json COCO_ANNOTATION_JSON
+
+evaluate COCO AP with pycocotools
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --coco_result_json COCO_RESULT_JSON
+                        coco json result file
+  --coco_annotation_json COCO_ANNOTATION_JSON
+                        coco json annotation file
 ```
 
 The default PCK metric (score_threshold=0.5, normalize=6.4) will also be applied on validation dataset during training process for picking best checkpoints.
@@ -240,8 +257,6 @@ See [on-device inference](https://github.com/david8862/tf-keras-stacked-hourglas
 
 
 ### TODO
-- [ ] support TF 2.1 fit() API on data generator
-- [ ] support more evaluation metrics (PCKh, MSCOCO AP)
 - [ ] support more datasets (LSP)
 - [ ] support letterbox input image in demo script
 

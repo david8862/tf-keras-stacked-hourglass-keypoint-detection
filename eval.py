@@ -3,7 +3,7 @@
 """
 Calculate PCK for Hourglass model on validation dataset
 """
-import os, argparse
+import os, argparse, json
 import numpy as np
 from tensorflow.keras.models import load_model
 import tensorflow.keras.backend as K
@@ -301,6 +301,35 @@ def hourglass_predict_mnn(interpreter, session, image_data):
     return heatmap
 
 
+def get_result_dict(pred_keypoints, metainfo):
+    '''
+     form up coco result dict with following format:
+     {
+      "image_id": int,
+      "category_id": int,
+      "keypoints": [x1,y1,v1,...,xk,yk,vk],
+      "score": float
+     }
+    '''
+    image_name = metainfo['name']
+    image_id = int(os.path.basename(image_name).split('.')[0])
+
+    result_dict = {}
+    keypoints_list = []
+    result_score = 0.0
+    for i, keypoint in enumerate(pred_keypoints):
+        keypoints_list.append(keypoint[0])
+        keypoints_list.append(keypoint[1])
+        keypoints_list.append(1) #visibility value. simply set vk=1
+        result_score += keypoint[2]
+
+    result_dict['image_id'] = image_id
+    result_dict['category_id'] = 1  #person id
+    result_dict['keypoints'] = keypoints_list
+    result_dict['score'] = result_score/len(pred_keypoints)
+    return result_dict
+
+
 def eval_PCK(model, model_format, eval_dataset, class_names, score_threshold, normalize, conf_threshold, save_result=False, skeleton_lines=None):
     if model_format == 'MNN':
         #MNN inference engine need create session
@@ -309,6 +338,17 @@ def eval_PCK(model, model_format, eval_dataset, class_names, score_threshold, no
     succeed_dict = {class_name: 0 for class_name in class_names}
     fail_dict = {class_name: 0 for class_name in class_names}
     accuracy_dict = {class_name: 0. for class_name in class_names}
+
+    # init output list for coco result json generation
+    # coco keypoints result is a list of following format dict:
+    # {
+    #  "image_id": int,
+    #  "category_id": int,
+    #  "keypoints": [x1,y1,v1,...,xk,yk,vk],
+    #  "score": float
+    # }
+    #
+    output_list = []
 
     count = 0
     batch_size = 1
@@ -353,15 +393,26 @@ def eval_PCK(model, model_format, eval_dataset, class_names, score_threshold, no
             elif result_list[i] == 1:
                 succeed_dict[class_name] = succeed_dict[class_name] + 1
 
-        if save_result:
-            # revert predict keypoints back to origin image size
-            reverted_pred_keypoints = revert_keypoints(pred_keypoints, metainfo, heatmap_size)
+        # revert predict keypoints back to origin image size
+        reverted_pred_keypoints = revert_keypoints(pred_keypoints, metainfo, heatmap_size)
 
+        # get coco result dict with predict keypoints and image info
+        result_dict = get_result_dict(reverted_pred_keypoints, metainfo)
+        # add result dict to output list
+        output_list.append(result_dict)
+
+        if save_result:
             # render keypoints skeleton on image and save result
             save_keypoints_detection(reverted_pred_keypoints, metainfo, class_names, skeleton_lines)
-
         pbar.update(batch_size)
     pbar.close()
+
+    # save to coco result json
+    touchdir('result')
+    json_fp = open(os.path.join('result','keypoints_result.json'), 'w')
+    json_str = json.dumps(output_list)
+    json_fp.write(json_str)
+    json_fp.close()
 
     # calculate accuracy for each class
     for i, class_name in enumerate(class_names):
@@ -376,7 +427,6 @@ def eval_PCK(model, model_format, eval_dataset, class_names, score_threshold, no
         '''
          Draw PCK plot
         '''
-        touchdir('result')
         window_title = "PCK evaluation"
         plot_title = "PCK@{0} score = {1:.2f}%".format(score_threshold, total_accuracy)
         x_label = "Accuracy"
@@ -407,7 +457,6 @@ def load_graph(model_path):
 
 
 def load_eval_model(model_path):
-
     # support of tflite model
     if model_path.endswith('.tflite'):
         from tensorflow.lite.python import interpreter as interpreter_wrapper
