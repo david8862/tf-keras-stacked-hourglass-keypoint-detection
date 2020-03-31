@@ -17,6 +17,7 @@ An end-to-end single-object keypoint estimation pipeline with Stacked-Hourglass 
 Install requirements on Ubuntu 16.04/18.04:
 
 ```
+# apt install python3-opencv
 # pip install -r requirements.txt
 ```
 
