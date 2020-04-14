@@ -15,6 +15,8 @@ from hourglass.postprocess import post_process_heatmap, post_process_heatmap_sin
 from common.data_utils import preprocess_image
 from common.utils import get_classes, get_skeleton, render_skeleton
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 
 def process_heatmap(heatmap, image, scale, class_names, skeleton_lines):
     start = time.time()

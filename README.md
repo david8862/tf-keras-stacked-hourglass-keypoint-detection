@@ -222,7 +222,7 @@ Use [eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-d
 # python eval.py --model_path=model.h5 --dataset_path=data/mscoco_2017/ --classes_path=configs/coco_classes.txt --save_result --skeleton_path=configs/coco_skeleton.txt
 ```
 
-For MSCOCO dataset, you can use [pycoco_eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/tree/master/tools/pycoco_eval.py) with the generated result json and COCO GT annotation to get official COCO AP with [pycocotools](https://github.com/cocodataset/cocoapi/tree/master/PythonAPI/pycocotools):
+For MSCOCO dataset, you can further use [pycoco_eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/tree/master/tools/pycoco_eval.py) with the generated result json and COCO GT annotation to get official COCO AP with [pycocotools](https://github.com/cocodataset/cocoapi/tree/master/PythonAPI/pycocotools):
 
 ```
 # cd tools && python pycoco_eval.py -h
@@ -240,6 +240,15 @@ optional arguments:
 ```
 
 The default PCK metric (score_threshold=0.5, normalize=6.4) will also be applied on validation dataset during training process for picking best checkpoints.
+
+Some experiment on MSCOCO Keypoints 2017 dataset:
+
+| Model name | InputSize | TrainSet | TestSet | val accuracy | COCO AP | COCO AP50 | Size | Speed | Ps |
+| ----- | ------ | ------ | ------ | ----- | ----- | ----- | ----- | ----- | ----- |
+| [hg_s2_256_256](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/releases/download/v1.0.0/hg_s2_256_256_coco.tar.gz) | 256x256 | train2017 | val2017 | 0.83 | 0.386 | 0.749 | 27MB | 20.9ms | Keras on Titan XP |
+| [hg_s2_mobile_256_256](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/releases/download/v1.0.0/hg_s2_mobile_256_256_coco.tar.gz) | 256x256 | train2017 | val2017 | 0.827 | 0.377 | 0.739 | 12MB| 20.8ms | Keras on Titan XP |
+| [hg_s2_mobile_tiny_256_256](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/releases/download/v1.0.0/hg_s2_mobile_tiny_256_256_coco.tar.gz) | 256x256 | train2017 | val2017 | 0.787 | 0.336 | 0.697 | 3.7MB | 19ms | Keras on Titan XP |
+| [hg_s2_mobile_tiny_192_192](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/releases/download/v1.0.0/hg_s2_mobile_tiny_192_192_coco.tar.gz) | 192x192 | train2017 | val2017 | 0.792 | 0.266 | 0.649 | 3.7MB | 18.4ms | Keras on Titan XP |
 
 
 ### Tensorflow model convert

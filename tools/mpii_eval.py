@@ -12,6 +12,8 @@ from hourglass.postprocess import post_process_heatmap
 from common.data_utils import transform
 from common.utils import get_classes
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 
 def get_predicted_kp_from_htmap(heatmap, meta, outres):
     # nms to get location

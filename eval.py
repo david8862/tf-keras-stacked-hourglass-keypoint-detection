@@ -21,6 +21,8 @@ from common.data_utils import invert_transform_kp
 from common.model_utils import get_normalize
 from common.utils import touchdir, get_classes, get_skeleton, render_skeleton
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 
 def check_pred_keypoints(pred_keypoint, gt_keypoint, threshold, normalize):
     # check if ground truth keypoint is valid

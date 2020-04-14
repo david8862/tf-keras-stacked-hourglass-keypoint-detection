@@ -14,6 +14,7 @@ from hourglass.postprocess import post_process_heatmap, post_process_heatmap_sin
 from common.data_utils import preprocess_image
 from common.utils import get_classes, get_skeleton, render_skeleton, optimize_tf_gpu
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 default_config = {
         "num_stacks": 2,
