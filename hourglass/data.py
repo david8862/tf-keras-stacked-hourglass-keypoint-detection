@@ -104,8 +104,8 @@ class hourglass_dataset(object):
             if is_shuffle:
                 random.shuffle(self.annotations)
 
-            batch_images = np.zeros(shape=(batch_size, self.input_size[0], self.input_size[1], 3), dtype=np.float)
-            batch_heatmaps = np.zeros(shape=(batch_size, self.output_size[0], self.output_size[1], self.num_classes), dtype=np.float)
+            batch_images = np.zeros(shape=(batch_size, self.input_size[0], self.input_size[1], 3), dtype=np.float32)
+            batch_heatmaps = np.zeros(shape=(batch_size, self.output_size[0], self.output_size[1], self.num_classes), dtype=np.float32)
             batch_metainfo = list()
 
             count = 0

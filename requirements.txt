@@ -2,10 +2,15 @@ numpy
 scipy
 scikit-image
 opencv-python
+opencv-contrib-python
 tensorflow-gpu
 tensorflow-model-optimization
 matplotlib
 tqdm
 pillow
 mnn
+keras2onnx
+tf2onnx
 pycocotools
+onnx
+onnxruntime
