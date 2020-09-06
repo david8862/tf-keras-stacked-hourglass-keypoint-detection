@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--json_file', type=str, required=True, help='original json annotation file')
     parser.add_argument('--mat_file', type=str, required=True, help='val detection .mat annotation file')
-    parser.add_argument('--output_file', type=str, required=False, help='output json annotation file include headbox info, default is ./new_annotations.json', default='./new_annotations.json')
+    parser.add_argument('--output_file', type=str, required=False, help='output json annotation file include headbox info, default=%(default)s', default='./new_annotations.json')
 
     args = parser.parse_args()
 

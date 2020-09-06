@@ -241,9 +241,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Parse MSCOCO keypoint annotation to our annotation files')
     parser.add_argument('--train_anno_path', type=str, required=True, help='MSCOCO keypoint train annotation file path')
     parser.add_argument('--val_anno_path', type=str, required=True, help='MSCOCO keypoint val annotation file path')
-    parser.add_argument('--output_anno_path', type=str, required=False,  help='generated annotation json file path, default is ./annotations.json', default='./annotations.json')
-    parser.add_argument('--output_class_path', type=str, required=False,  help='generated keypoint classes txt file path, default is ./coco_classes.txt', default='./coco_classes.txt')
-    parser.add_argument('--output_skeleton_path', type=str, required=False,  help='generated keypoint skeleton txt file path, default is ./coco_skeleton.txt', default='./coco_skeleton.txt')
+    parser.add_argument('--output_anno_path', type=str, required=False,  help='generated annotation json file path, default=%(default)s', default='./annotations.json')
+    parser.add_argument('--output_class_path', type=str, required=False,  help='generated keypoint classes txt file path, default=%(default)s', default='./coco_classes.txt')
+    parser.add_argument('--output_skeleton_path', type=str, required=False,  help='generated keypoint skeleton txt file path, default=%(default)s', default='./coco_skeleton.txt')
     args = parser.parse_args()
 
     main(args)

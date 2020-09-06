@@ -23,7 +23,7 @@ optimize_tf_gpu(tf, K)
 
 
 def main(args):
-    log_dir = 'logs/'
+    log_dir = 'logs/000'
     class_names = get_classes(args.classes_path)
     num_classes = len(class_names)
     if args.matchpoint_path:
@@ -101,37 +101,37 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Model definition options
     parser.add_argument("--num_stacks", type=int, required=False, default=2,
-        help='number of hourglass stacks, default=2')
+        help='number of hourglass stacks, default=%(default)s')
     parser.add_argument("--mobile", default=False, action="store_true",
         help="use depthwise conv in hourglass'")
     parser.add_argument("--tiny", default=False, action="store_true",
         help="tiny network for speed, feature channel=128")
     parser.add_argument('--model_image_size', type=str, required=False, default='256x256',
-        help = "model image input size as <num>x<num>, default 256x256")
+        help = "model image input size as <height>x<width>, default=%(default)s")
     parser.add_argument('--weights_path', type=str, required=False, default=None,
         help = "Pretrained model/weights file for fine tune")
 
     # Data options
     parser.add_argument('--dataset_path', type=str, required=False, default='data/mpii',
-        help='dataset path containing images and annotation file, default=data/mpii')
+        help='dataset path containing images and annotation file, default=%(default)s')
     parser.add_argument('--classes_path', type=str, required=False, default='configs/mpii_classes.txt',
-        help='path to keypoint class definitions, default=configs/mpii_classes.txt')
+        help='path to keypoint class definitions, default=%(default)s')
     parser.add_argument('--matchpoint_path', type=str, required=False, default='configs/mpii_match_point.txt',
-        help='path to matching keypoint definitions for horizontal/vertical flipping image, default=configs/mpii_match_point.txt')
+        help='path to matching keypoint definitions for horizontal/vertical flipping image, default=%(default)s')
 
     # Training options
     parser.add_argument("--batch_size", type=int, required=False, default=16,
-        help='batch size for training, default=16')
+        help='batch size for training, default=%(default)s')
     parser.add_argument('--optimizer', type=str,required=False, default='rmsprop',
-        help = "optimizer for training (adam/rmsprop/sgd), default=rmsprop")
+        help = "optimizer for training (adam/rmsprop/sgd), default=%(default)s")
     parser.add_argument('--learning_rate', type=float,required=False, default=5e-4,
-        help = "Initial learning rate, default=0.0005")
+        help = "Initial learning rate, default=%(default)s")
     parser.add_argument("--init_epoch", type=int, required=False, default=0,
-        help="initial training epochs for fine tune training, default=0")
+        help="initial training epochs for fine tune training, default=%(default)s")
     parser.add_argument("--total_epoch", type=int, required=False, default=100,
-        help="total training epochs, default=100")
+        help="total training epochs, default=%(default)s")
     parser.add_argument('--gpu_num', type=int, required=False, default=1,
-        help='Number of GPU to use, default=1')
+        help='Number of GPU to use, default=%(default)s')
 
     args = parser.parse_args()
     height, width = args.model_image_size.split('x')

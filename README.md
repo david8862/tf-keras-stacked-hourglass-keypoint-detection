@@ -54,7 +54,7 @@ Install requirements on Ubuntu 16.04/18.04:
             # unzip val2017.zip -d images
             # unzip annotations_trainval2017.zip
             ```
-        * use [coco_annotation.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/tools/coco_annotation.py) to generate our annotation json file "annotations.json" from official annotation:
+        * use [coco_annotation.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/tools/dataset_converter/coco_annotation.py) to generate our annotation json file "annotations.json" from official annotation:
             ```
             # cd tools && python coco_annotation.py -h
             usage: coco_annotation.py [-h] --train_anno_path TRAIN_ANNO_PATH
@@ -81,7 +81,7 @@ Install requirements on Ubuntu 16.04/18.04:
                                     generated keypoint skeleton txt file path, default is
                                     ./coco_skeleton.txt
 
-            # python coco_annotation.py --train_anno_path=../data/mscoco_2017/annotations/person_keypoints_train2017.json --val_anno_path=../data/mscoco_2017/annotations/person_keypoints_val2017.json --output_anno_path=../data/mscoco_2017/annotations.json
+            # python coco_annotation.py --train_anno_path=../../data/mscoco_2017/annotations/person_keypoints_train2017.json --val_anno_path=../../data/mscoco_2017/annotations/person_keypoints_val2017.json --output_anno_path=../../data/mscoco_2017/annotations.json
             ```
 
         * (Optional) Download MSCOCO [2014](https://drive.google.com/open?id=1jrxis4ujrLlkwoD2GOdv3PGzygpQ04k7)/[2017](https://drive.google.com/open?id=1YuzpScAfzemwZqUuZBrbBZdoplXEqUse) annotation json file to `data/mscoco_2014(2017)` and rename to "annotations.json"
@@ -130,7 +130,7 @@ optional arguments:
   --mobile              use depthwise conv in hourglass'
   --tiny                tiny network for speed, feature channel=128
   --model_image_size MODEL_IMAGE_SIZE
-                        model image input size as <num>x<num>, default 256x256
+                        model image input size as <height>x<width>, default 256x256
   --weights_path WEIGHTS_PATH
                         Pretrained model/weights file for fine tune
   --dataset_path DATASET_PATH
@@ -163,16 +163,16 @@ Following is a reference training config cmd:
 # python train.py --num_stacks=2 --mobile --dataset_path=data/mscoco_2017/ --classes_path=configs/coco_classes.txt --matchpoint_path=configs/coco_match_point.txt
 ```
 
-Checkpoints during training could be found at `logs/`. Choose a best one as result
+Checkpoints during training could be found at `logs/000/`. Choose a best one as result
 
 You can also use Tensorboard to monitor the loss trend during train:
 ```
-# tensorboard --logdir=logs/
+# tensorboard --logdir=logs/000/
 ```
 
 MultiGPU usage: use `--gpu_num N` to use N GPUs. It is passed to the [Keras multi_gpu_model()](https://keras.io/utils/#multi_gpu_model).
 
-Some val_accuracy curves during training MSCOCO Keypoints 2017 Dataset. Chart can be created with [draw_train_curve.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/tools/draw_train_curve.py) and use recorded logs/val.txt during train:
+Some val_accuracy curves during training MSCOCO Keypoints 2017 Dataset. Chart can be created with [draw_train_curve.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/tools/misc/draw_train_curve.py) and use recorded logs/val.txt during train:
 
 <p align="center">
   <img src="assets/accuracy.jpg">
@@ -222,10 +222,10 @@ Use [eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-d
 # python eval.py --model_path=model.h5 --dataset_path=data/mscoco_2017/ --classes_path=configs/coco_classes.txt --save_result --skeleton_path=configs/coco_skeleton.txt
 ```
 
-For MSCOCO dataset, you can further use [pycoco_eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/tree/master/tools/pycoco_eval.py) with the generated result json and COCO GT annotation to get official COCO AP with [pycocotools](https://github.com/cocodataset/cocoapi/tree/master/PythonAPI/pycocotools):
+For MSCOCO dataset, you can further use [pycoco_eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/tree/master/tools/evaluation/pycoco_eval.py) with the generated result json and COCO GT annotation to get official COCO AP with [pycocotools](https://github.com/cocodataset/cocoapi/tree/master/PythonAPI/pycocotools):
 
 ```
-# cd tools && python pycoco_eval.py -h
+# cd tools/evaluation && python pycoco_eval.py -h
 usage: pycoco_eval.py [-h] --coco_result_json COCO_RESULT_JSON
                       --coco_annotation_json COCO_ANNOTATION_JSON
 
@@ -252,7 +252,7 @@ Some experiment on MSCOCO Keypoints 2017 dataset:
 
 
 ### Tensorflow model convert
-Using [keras_to_tensorflow.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/tools/keras_to_tensorflow.py) to convert the keras .h5 model to tensorflow frozen pb model (only for TF 1.x):
+Using [keras_to_tensorflow.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/tools/model_converter/keras_to_tensorflow.py) to convert the keras .h5 model to tensorflow frozen pb model (only for TF 1.x):
 ```
 # python keras_to_tensorflow.py
     --input_model="path/to/keras/model.h5"

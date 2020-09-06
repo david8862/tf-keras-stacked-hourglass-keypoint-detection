@@ -47,8 +47,8 @@ Currently, We only support dumping out keras .h5 model to Float32 .tflite model:
 
 4. Run validate script to check TFLite model
 ```
-# cd tf-keras-stacked-hourglass-keypoint-detection/tools/
-# python validate_hourglass.py --model_path=model.tflite --classes_path=../configs/coco_classes.txt --skeleton_path=../configs/coco_skeleton.txt --image_file=../example/sample.jpg --loop_count=5
+# cd tf-keras-stacked-hourglass-keypoint-detection/tools/evaluation/
+# python validate_hourglass.py --model_path=model.tflite --classes_path=../../configs/coco_classes.txt --skeleton_path=../../configs/coco_skeleton.txt --image_file=../../example/sample.jpg --loop_count=5
 ```
 
 5. Run application to do inference with model, or put assets to ARM board and run if cross-compile

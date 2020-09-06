@@ -5,23 +5,28 @@ Calculate PCK for Hourglass model on validation dataset
 """
 import os, argparse, json
 import numpy as np
+import operator
+from operator import mul
+from functools import reduce
+from PIL import Image
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+
 from tensorflow.keras.models import load_model
 import tensorflow.keras.backend as K
 import tensorflow as tf
 import MNN
-
-from PIL import Image
-import operator
-import matplotlib.pyplot as plt
-from tqdm import tqdm
+import onnxruntime
 
 from hourglass.data import hourglass_dataset
 from hourglass.postprocess import post_process_heatmap
 from common.data_utils import invert_transform_kp
 from common.model_utils import get_normalize
-from common.utils import touchdir, get_classes, get_skeleton, render_skeleton
+from common.utils import touchdir, get_classes, get_skeleton, render_skeleton, optimize_tf_gpu
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+optimize_tf_gpu(tf, K)
 
 
 def check_pred_keypoints(pred_keypoint, gt_keypoint, threshold, normalize):
@@ -258,10 +263,24 @@ def hourglass_predict_pb(model, image_data):
     return heatmap
 
 
-def hourglass_predict_mnn(interpreter, session, image_data):
-    from functools import reduce
-    from operator import mul
+def hourglass_predict_onnx(model, image_data):
+    input_tensors = []
+    for i, input_tensor in enumerate(model.get_inputs()):
+        input_tensors.append(input_tensor)
+    # assume only 1 input tensor for image
+    assert len(input_tensors) == 1, 'invalid input tensor number.'
 
+    feed = {input_tensors[0].name: image_data}
+    prediction = model.run(None, feed)
+
+    # check to handle multi-output model
+    if isinstance(prediction, list):
+        prediction = prediction[-1]
+    heatmap = prediction[0]
+    return heatmap
+
+
+def hourglass_predict_mnn(interpreter, session, image_data):
     # assume only 1 input tensor for image
     input_tensor = interpreter.getSessionInput(session)
     # get input shape
@@ -370,6 +389,9 @@ def eval_PCK(model, model_format, eval_dataset, class_names, score_threshold, no
         # support of TF 1.x frozen pb model
         elif model_format == 'PB':
             heatmap = hourglass_predict_pb(model, image_data)
+        # support of ONNX model
+        elif model_format == 'ONNX':
+            heatmap = hourglass_predict_onnx(model, image_data)
         # normal keras h5 model
         elif model_format == 'H5':
             heatmap = hourglass_predict_keras(model, image_data)
@@ -476,6 +498,11 @@ def load_eval_model(model_path):
         model = load_graph(model_path)
         model_format = 'PB'
 
+    # support of ONNX model
+    elif model_path.endswith('.onnx'):
+        model = onnxruntime.InferenceSession(model_path)
+        model_format = 'ONNX'
+
     # normal keras h5 model
     elif model_path.endswith('.h5'):
         model = load_model(model_path, compile=False)
@@ -488,7 +515,7 @@ def load_eval_model(model_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS, description='evaluate Hourglass model (h5/pb/tflite/mnn) with test dataset')
+    parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS, description='evaluate Hourglass model (h5/pb/onnx/tflite/mnn) with test dataset')
     '''
     Command line options
     '''
@@ -498,7 +525,7 @@ def main():
 
     parser.add_argument(
         '--classes_path', type=str, required=False,
-        help='path to class definitions, default configs/mpii_classes.txt', default='configs/mpii_classes.txt')
+        help='path to class definitions, default=%(default)s', default='configs/mpii_classes.txt')
 
     parser.add_argument(
         '--dataset_path', type=str, required=True,
@@ -506,7 +533,7 @@ def main():
 
     parser.add_argument(
         '--score_threshold', type=float,
-        help='score threshold for PCK evaluation, default=0.5', default=0.5)
+        help='score threshold for PCK evaluation, default=%(default)s', default=0.5)
 
     #parser.add_argument(
         #'--normalize', type=float,
@@ -514,11 +541,11 @@ def main():
 
     parser.add_argument(
         '--conf_threshold', type=float,
-        help='confidence threshold for filtering keypoint in postprocess, default=1e-6', default=1e-6)
+        help='confidence threshold for filtering keypoint in postprocess, default=%(default)s', default=1e-6)
 
     parser.add_argument(
         '--model_image_size', type=str,
-        help='model image input size as <num>x<num>, default 256x256', default='256x256')
+        help='model image input size as <height>x<width>, default=%(default)s', default='256x256')
 
     parser.add_argument(
         '--save_result', default=False, action="store_true",

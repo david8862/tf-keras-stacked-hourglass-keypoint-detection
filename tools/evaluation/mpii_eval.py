@@ -6,7 +6,7 @@ import numpy as np
 from tqdm import tqdm
 from tensorflow.keras.models import load_model
 
-sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
 from hourglass.data import hourglass_dataset
 from hourglass.postprocess import post_process_heatmap
 from common.data_utils import transform
@@ -213,10 +213,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Calculate PCKh metric on MPII dataset for Hourglass keypoint detection model')
 
     parser.add_argument('--model_path', type=str, required=True, help='path to model file')
-    parser.add_argument('--dataset_path', type=str, required=False, default='../data/mpii',
-        help='dataset path containing images and annotation file, default=../data/mpii')
-    parser.add_argument('--classes_path', type=str, required=False, default='../configs/mpii_classes.txt',
-        help='path to keypoint class definitions, default=../configs/mpii_classes.txt')
+    parser.add_argument('--dataset_path', type=str, required=False, default='../../data/mpii',
+        help='dataset path containing images and annotation file, default=%(default)s')
+    parser.add_argument('--classes_path', type=str, required=False, default='../../configs/mpii_classes.txt',
+        help='path to keypoint class definitions, default=%(default)s')
 
     args = parser.parse_args()
 

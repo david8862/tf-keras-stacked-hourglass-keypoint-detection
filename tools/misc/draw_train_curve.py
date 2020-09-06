@@ -69,7 +69,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Draw val accuracy curves during training')
 
     parser.add_argument('--data_files', type=str, required=True, help='val accuracy record files, separated with comma')
-    parser.add_argument('--output_file', type=str, required=False, help='saved curve chart image file, default is ./accuracy.jpg', default='./accuracy.jpg')
+    parser.add_argument('--output_file', type=str, required=False, help='saved curve chart image file, default=%(default)s', default='./accuracy.jpg')
 
     args = parser.parse_args()
 

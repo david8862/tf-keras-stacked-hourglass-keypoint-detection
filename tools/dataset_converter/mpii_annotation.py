@@ -125,7 +125,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Parse MPII dataset .mat annotation to our json annotation file')
 
     parser.add_argument('--mat_file', type=str, required=True, help='MPII mat file')
-    parser.add_argument('--output_file', type=str, required=False, help='output json annotation file, default is ./train_annotations.json', default='./train_annotations.json')
+    parser.add_argument('--output_file', type=str, required=False, help='output json annotation file, default=%(default)s', default='./train_annotations.json')
     parser.add_argument('--single_only', action="store_true", help='only include single person sample', default=False)
 
     args = parser.parse_args()

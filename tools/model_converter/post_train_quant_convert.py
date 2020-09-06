@@ -10,7 +10,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 
-sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
 from hourglass.data import hourglass_dataset
 from common.utils import get_classes
 #from common.utils import get_custom_objects
@@ -64,9 +64,8 @@ def main():
     parser.add_argument('--keras_model_file', required=True, type=str, help='path to keras model file')
     parser.add_argument('--dataset_path', required=True, type=str, help='dataset path containing images and annotation file')
     parser.add_argument('--classes_path', required=True, type=str, help='path to keypoint class definition file')
-    parser.add_argument('--sample_num', type=int, help='image sample number to feed the converter, default 100', default=100)
+    parser.add_argument('--sample_num', type=int, help='image sample number to feed the converter, default=%(default)s', default=100)
     parser.add_argument('--output_file', required=True, type=str, help='output tflite model file')
-    #parser.add_argument('--custom_objects', required=False, type=str, help="Custom objects in keras model. Separated with comma if more than one.", default=None)
 
     args = parser.parse_args()
 
