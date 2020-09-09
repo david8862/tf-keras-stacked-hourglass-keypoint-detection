@@ -170,7 +170,7 @@ You can also use Tensorboard to monitor the loss trend during train:
 # tensorboard --logdir=logs/000/
 ```
 
-MultiGPU usage: use `--gpu_num N` to use N GPUs. It is passed to the [Keras multi_gpu_model()](https://keras.io/utils/#multi_gpu_model).
+MultiGPU usage: use `--gpu_num N` to use N GPUs. It use [tf.distribute.MirroredStrategy](https://www.tensorflow.org/guide/distributed_training#mirroredstrategy) to support MultiGPU environment.
 
 Some val_accuracy curves during training MSCOCO Keypoints 2017 Dataset. Chart can be created with [draw_train_curve.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/tools/misc/draw_train_curve.py) and use recorded logs/val.txt during train:
 
@@ -259,7 +259,18 @@ Using [keras_to_tensorflow.py](https://github.com/david8862/tf-keras-stacked-hou
     --output_model="path/to/save/model.pb"
 ```
 
-You can also use [eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/eval.py) to do evaluation on the pb inference model
+### ONNX model convert
+Using [keras_to_onnx.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/tools/model_converter/keras_to_onnx.py) to convert the tf.keras .h5 model to ONNX model:
+```
+### need to set environment TF_KERAS=1 for tf.keras model
+# export TF_KERAS=1
+# python keras_to_onnx.py
+    --keras_model_file="path/to/keras/model.h5"
+    --output_file="path/to/save/model.onnx"
+    --op_set=11
+```
+
+You can also use [eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/eval.py) to do evaluation on the pb & onnx inference model
 
 
 ### Inference model deployment

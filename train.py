@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 import os, sys, argparse
 import tensorflow.keras.backend as K
 from tensorflow.keras.utils import multi_gpu_model
@@ -24,6 +23,8 @@ optimize_tf_gpu(tf, K)
 
 def main(args):
     log_dir = 'logs/000'
+    os.makedirs(log_dir, exist_ok=True)
+
     class_names = get_classes(args.classes_path)
     num_classes = len(class_names)
     if args.matchpoint_path:
@@ -60,23 +61,29 @@ def main(args):
     #optimizer = RMSprop(lr=5e-4)
     optimizer = get_optimizer(args.optimizer, args.learning_rate, decay_type=None)
 
-    # get train model, doesn't specify input size
-    model = get_hourglass_model(num_classes, args.num_stacks, num_channels, mobile=args.mobile)
+    # support multi-gpu training
+    if args.gpu_num >= 2:
+        # devices_list=["/gpu:0", "/gpu:1"]
+        devices_list=["/gpu:{}".format(n) for n in range(args.gpu_num)]
+        strategy = tf.distribute.MirroredStrategy(devices=devices_list)
+        print ('Number of devices: {}'.format(strategy.num_replicas_in_sync))
+        with strategy.scope():
+            # get multi-gpu train model, doesn't specify input size
+            model = get_hourglass_model(num_classes, args.num_stacks, num_channels, mobile=args.mobile)
+            # compile model
+            model.compile(optimizer=optimizer, loss=mean_squared_error)
+    else:
+        # get normal train model, doesn't specify input size
+        model = get_hourglass_model(num_classes, args.num_stacks, num_channels, mobile=args.mobile)
+        # compile model
+        model.compile(optimizer=optimizer, loss=mean_squared_error)
+
     print('Create {} Stacked Hourglass model with stack number {}, channel number {}. train input size {}'.format('Mobile' if args.mobile else '', args.num_stacks, num_channels, input_size))
     model.summary()
 
     if args.weights_path:
         model.load_weights(args.weights_path, by_name=True)#, skip_mismatch=True)
         print('Load weights {}.'.format(args.weights_path))
-
-    # support multi-gpu training
-    template_model = None
-    if args.gpu_num >= 2:
-        # keep the template model for saving result
-        template_model = model
-        model = multi_gpu_model(model, gpus=args.gpu_num)
-
-    model.compile(optimizer=optimizer, loss=mean_squared_error)
 
     # start training
     model.fit_generator(generator=train_gen,
@@ -88,11 +95,7 @@ def main(args):
                         max_queue_size=10,
                         callbacks=callbacks)
 
-    if template_model is not None:
-        template_model.save(os.path.join(log_dir, 'trained_final.h5'))
-    else:
-        model.save(os.path.join(log_dir, 'trained_final.h5'))
-
+    model.save(os.path.join(log_dir, 'trained_final.h5'))
     return
 
 
