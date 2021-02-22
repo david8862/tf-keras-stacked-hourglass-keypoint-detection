@@ -4,7 +4,7 @@ import os, random
 import numpy as np
 from PIL import Image
 import json
-from common.data_utils import crop, horizontal_flip, vertical_flip, normalize, transform_kp, generate_gtmap
+from common.data_utils import crop, horizontal_flip, vertical_flip, normalize_image, transform_kp, generate_gtmap
 
 
 class hourglass_dataset(object):
@@ -183,7 +183,7 @@ class hourglass_dataset(object):
             return None, None, None
 
         # normalize image
-        image = normalize(image, self.get_color_mean())
+        image = normalize_image(image, self.get_color_mean())
 
         # transform keypoints to crop image reference
         transformedKps = transform_kp(joints, center, scale, self.output_size, rot)

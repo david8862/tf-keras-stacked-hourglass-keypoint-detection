@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image
 import cv2
 
+
 def get_transform(center, scale, res, rot=0):
     """
     General image processing functions
@@ -159,19 +160,6 @@ def vertical_flip(image, joints, center, matchpoints=None):
     return flipimage, joints, flip_center
 
 
-def normalize(imgdata, color_mean):
-    '''
-    :param imgdata: image in 0 ~ 255
-    :return:  image from 0.0 to 1.0
-    '''
-    imgdata = imgdata / 255.0
-
-    for i in range(imgdata.shape[-1]):
-        imgdata[:, :, i] -= color_mean[i]
-
-    return imgdata
-
-
 def draw_labelmap(img, pt, sigma, type='Gaussian'):
     # Draw a 2D gaussian
     # Adopted from https://github.com/anewell/pose-hg-train/blob/master/src/pypose/draw.py
@@ -234,6 +222,32 @@ def generate_gtmap(joints, sigma, outres):
     return gtmap
 
 
+def normalize_image(imgdata, color_mean):
+    '''
+    :param imgdata: image in 0 ~ 255
+    :return:  image from 0.0 to 1.0
+    '''
+    imgdata = imgdata / 255.0
+
+    for i in range(imgdata.shape[-1]):
+        imgdata[:, :, i] -= color_mean[i]
+
+    return imgdata
+
+
+def denormalize_image(imgdata, color_mean):
+    '''
+    :param imgdata: image from 0.0 to 1.0
+    :return:  image in 0 ~ 255
+    '''
+    for i in range(imgdata.shape[-1]):
+        imgdata[:, :, i] += color_mean[i]
+
+    imgdata = (imgdata*255.0).astype(np.uint8)
+
+    return imgdata
+
+
 def preprocess_image(image, model_input_size, mean=(0.4404, 0.4440, 0.4327)):
     """
     Prepare model input image data with
@@ -252,6 +266,6 @@ def preprocess_image(image, model_input_size, mean=(0.4404, 0.4440, 0.4327)):
     image_data = np.asarray(resized_image).astype('float32')
 
     mean = np.array(mean, dtype=np.float)
-    image_data = normalize(image_data, mean)
+    image_data = normalize_image(image_data, mean)
     image_data = np.expand_dims(image_data, 0)  # Add batch dimension
     return image_data
