@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import os, sys, argparse
 import tensorflow.keras.backend as K
-from tensorflow.keras.utils import multi_gpu_model
+#from tensorflow.keras.utils import multi_gpu_model
 from tensorflow.keras.losses import mean_squared_error
 from tensorflow.keras.callbacks import TensorBoard, TerminateOnNaN
 
