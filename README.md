@@ -252,7 +252,7 @@ Some experiment on MSCOCO Keypoints 2017 dataset:
 
 
 ### Tensorflow model convert
-Using [keras_to_tensorflow.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/tools/model_converter/keras_to_tensorflow.py) to convert the keras .h5 model to tensorflow frozen pb model (only for TF 1.x):
+Using [keras_to_tensorflow.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/tools/model_converter/keras_to_tensorflow.py) to convert the keras .h5 model to tensorflow frozen pb model:
 ```
 # python keras_to_tensorflow.py
     --input_model="path/to/keras/model.h5"
