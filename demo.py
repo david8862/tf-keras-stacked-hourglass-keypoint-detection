@@ -23,9 +23,9 @@ default_config = {
         "model_image_size": (256, 256),
         "num_channels": 256,
         "conf_threshold": 0.1,
-        "classes_path": 'configs/mpii_classes.txt',
+        "classes_path": os.path.join('configs', 'mpii_classes.txt'),
         "skeleton_path": None,
-        "weights_path": 'weights/hourglass_mobile.h5',
+        "weights_path": os.path.join('weights', 'hourglass_mobile.h5'),
         "gpu_num" : 1,
     }
 
@@ -94,8 +94,11 @@ class Hourglass(object):
 
     def predict(self, image_data):
         # get final predict heatmap
-        heatmap = self.hourglass_model.predict(image_data)[-1]
-        heatmap = heatmap[0]
+        prediction = self.hourglass_model.predict(image_data)
+        if isinstance(prediction, list):
+            prediction = prediction[-1]
+        heatmap = prediction[0]
+
         # parse out predicted keypoint from heatmap
         keypoints = post_process_heatmap(heatmap)
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import os, copy
+#import os, copy
 import numpy as np
-from scipy.io import loadmat
-import skimage.io as sio
+#from scipy.io import loadmat
+#import skimage.io as sio
 from scipy.ndimage import gaussian_filter, maximum_filter
 
 
