@@ -244,7 +244,7 @@ The default PCK metric (score_threshold=0.5, normalize=6.4) will also be applied
 Some experiment on MSCOCO Keypoints 2017 dataset:
 
 | Model name | InputSize | TrainSet | TestSet | PCK@0.5 | COCO AP | COCO AP50 | FLOPS | Param | Speed | Ps |
-| ----- | ------ | ------ | ------ | ----- | ----- | ----- | ----- | ----- | ----- |
+| ----- | ------ | ------ | ------ | ----- | ----- | ----- | ----- | ----- | ----- | ----- |
 | [hg_s2_256_256](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/releases/download/v1.0.0/hg_s2_256_256_coco.tar.gz) | 256x256 | train2017 | val2017 | 0.83 | 0.386 | 0.749 | 20.28G | 6.57M | 20.9ms | Keras on Titan XP |
 | [hg_s2_mobile_256_256](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/releases/download/v1.0.0/hg_s2_mobile_256_256_coco.tar.gz) | 256x256 | train2017 | val2017 | 0.827 | 0.377 | 0.739 | 9.38G | 2.75M | 20.8ms | Keras on Titan XP |
 | [hg_s2_mobile_tiny_256_256](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/releases/download/v1.0.0/hg_s2_mobile_tiny_256_256_coco.tar.gz) | 256x256 | train2017 | val2017 | 0.787 | 0.336 | 0.697 | 2.62G | 720.8K | 19ms | Keras on Titan XP |
