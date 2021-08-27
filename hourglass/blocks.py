@@ -1,24 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Conv2D, SeparableConv2D, BatchNormalization, MaxPool2D, Input, Add, UpSampling2D
-from tensorflow.keras.optimizers import Adam, RMSprop
-from tensorflow.keras.losses import mean_squared_error
+from tensorflow.keras.layers import Conv2D, SeparableConv2D, BatchNormalization, MaxPool2D, Add, UpSampling2D
 import tensorflow.keras.backend as K
-
-
-def hourglass_module(bottom, num_classes, num_channels, bottleneck, hgid):
-    # create left features , f1, f2, f4, and f8
-    left_features = create_left_half_blocks(bottom, bottleneck, hgid, num_channels)
-
-    # create right features, connect with left features
-    rf1 = create_right_half_blocks(left_features, bottleneck, hgid, num_channels)
-
-    # add 1x1 conv with two heads, head_next_stage is sent to next stage
-    # head_parts is used for intermediate supervision
-    head_next_stage, head_parts = create_heads(bottom, rf1, num_classes, hgid, num_channels)
-
-    return head_next_stage, head_parts
 
 
 def bottleneck_block(bottom, num_out_channels, block_name):
@@ -67,13 +50,12 @@ def bottleneck_mobile(bottom, num_out_channels, block_name):
     return _x
 
 
-def create_front_module(input, num_channels, bottleneck):
+def create_front_module(input_tensor, num_channels, bottleneck):
     # front module, input to 1/4 resolution
     # 1 7x7 conv + maxpooling
     # 3 residual block
-
     _x = Conv2D(64, kernel_size=(7, 7), strides=(2, 2), padding='same', activation='relu', name='front_conv_1x1_x1')(
-        input)
+        input_tensor)
     _x = BatchNormalization()(_x)
 
     _x = bottleneck(_x, num_channels // 2, 'front_residual_x1')
@@ -85,10 +67,23 @@ def create_front_module(input, num_channels, bottleneck):
     return _x
 
 
+def hourglass_module(bottom, num_classes, num_channels, bottleneck, hgid):
+    # create left features , f1, f2, f4, and f8
+    left_features = create_left_half_blocks(bottom, bottleneck, hgid, num_channels)
+
+    # create right features, connect with left features
+    rf1 = create_right_half_blocks(left_features, bottleneck, hgid, num_channels)
+
+    # add 1x1 conv with two heads, head_next_stage is sent to next stage
+    # head_parts is used for intermediate supervision
+    head_next_stage, head_parts = create_heads(bottom, rf1, num_classes, hgid, num_channels)
+
+    return head_next_stage, head_parts
+
+
 def create_left_half_blocks(bottom, bottleneck, hglayer, num_channels):
     # create left half blocks for hourglass module
     # f1, f2, f4 , f8 : 1, 1/2, 1/4 1/8 resolution
-
     hgname = 'hg' + str(hglayer)
 
     f1 = bottleneck(bottom, num_channels, hgname + '_l1')
@@ -114,7 +109,6 @@ def connect_left_to_right(left, right, bottleneck, name, num_channels):
     # left -> 1 bottlenect
     # right -> upsampling
     # Add   -> left + right
-
     _xleft = bottleneck(left, num_channels, name + '_connect')
     _xright = UpSampling2D()(right)
     add = Add()([_xleft, _xright])
@@ -125,7 +119,6 @@ def connect_left_to_right(left, right, bottleneck, name, num_channels):
 def bottom_layer(lf8, bottleneck, hgid, num_channels):
     # blocks in lowest resolution
     # 3 bottlenect blocks + Add
-
     lf8_connect = bottleneck(lf8, num_channels, str(hgid) + "_lf8")
 
     _x = bottleneck(lf8, num_channels, str(hgid) + "_lf8_x1")
@@ -141,11 +134,8 @@ def create_right_half_blocks(leftfeatures, bottleneck, hglayer, num_channels):
     lf1, lf2, lf4, lf8 = leftfeatures
 
     rf8 = bottom_layer(lf8, bottleneck, hglayer, num_channels)
-
     rf4 = connect_left_to_right(lf4, rf8, bottleneck, 'hg' + str(hglayer) + '_rf4', num_channels)
-
     rf2 = connect_left_to_right(lf2, rf4, bottleneck, 'hg' + str(hglayer) + '_rf2', num_channels)
-
     rf1 = connect_left_to_right(lf1, rf2, bottleneck, 'hg' + str(hglayer) + '_rf1', num_channels)
 
     return rf1
@@ -170,6 +160,3 @@ def create_heads(prelayerfeatures, rf1, num_classes, hgid, num_channels):
     head_next_stage = Add()([head, head_m, prelayerfeatures])
     return head_next_stage, head_parts
 
-
-def euclidean_loss(x, y):
-    return K.sqrt(K.sum(K.square(x - y)))
