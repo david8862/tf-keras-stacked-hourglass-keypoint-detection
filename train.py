@@ -8,6 +8,7 @@ from tensorflow.keras.callbacks import TensorBoard, TerminateOnNaN
 
 from hourglass.model import get_hourglass_model
 from hourglass.data import hourglass_dataset
+from hourglass.loss import get_loss
 from hourglass.callbacks import EvalCallBack
 from common.utils import get_classes, get_matchpoints, get_model_type, optimize_tf_gpu
 from common.model_utils import get_optimizer
@@ -61,6 +62,9 @@ def main(args):
     #optimizer = RMSprop(lr=5e-4)
     optimizer = get_optimizer(args.optimizer, args.learning_rate, decay_type=None)
 
+    # prepare loss function
+    loss_func = get_loss(args.loss_type)
+
     # support multi-gpu training
     if args.gpu_num >= 2:
         # devices_list=["/gpu:0", "/gpu:1"]
@@ -71,12 +75,12 @@ def main(args):
             # get multi-gpu train model, doesn't specify input size
             model = get_hourglass_model(num_classes, args.num_stacks, num_channels, mobile=args.mobile)
             # compile model
-            model.compile(optimizer=optimizer, loss=mean_squared_error)
+            model.compile(optimizer=optimizer, loss=loss_func)
     else:
         # get normal train model, doesn't specify input size
         model = get_hourglass_model(num_classes, args.num_stacks, num_channels, mobile=args.mobile)
         # compile model
-        model.compile(optimizer=optimizer, loss=mean_squared_error)
+        model.compile(optimizer=optimizer, loss=loss_func)
 
     print('Create {} Stacked Hourglass model with stack number {}, channel number {}. train input size {}'.format('Mobile' if args.mobile else '', args.num_stacks, num_channels, input_size))
     model.summary()
@@ -127,6 +131,8 @@ if __name__ == "__main__":
         help='batch size for training, default=%(default)s')
     parser.add_argument('--optimizer', type=str,required=False, default='rmsprop',
         help = "optimizer for training (adam/rmsprop/sgd), default=%(default)s")
+    parser.add_argument('--loss_type', type=str, required=False, default='mse', choices=['mse', 'mae', 'smooth_l1', 'huber'],
+        help = "loss type for training (mse/mae/smooth_l1/huber), default=%(default)s")
     parser.add_argument('--learning_rate', type=float,required=False, default=5e-4,
         help = "Initial learning rate, default=%(default)s")
     parser.add_argument("--init_epoch", type=int, required=False, default=0,

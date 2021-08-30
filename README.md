@@ -4,12 +4,19 @@
 
 ## Introduction
 
-An end-to-end single-object keypoint estimation pipeline with Stacked-Hourglass models. Code base is inherited from [Stacked_Hourglass_Network_Keras](https://github.com/yuanyuanli85/Stacked_Hourglass_Network_Keras) and also refer official implementation [pose-hg-train](https://github.com/princeton-vl/pose-hg-train) & pytorch version [pytorch-pose](https://github.com/bearpaw/pytorch-pose). This repo is implemented with tf.keras for model training and TFLite for on-device deployment. Support different model type:
+An end-to-end single-object keypoint estimation pipeline with Stacked-Hourglass models. Code base is inherited from [Stacked_Hourglass_Network_Keras](https://github.com/yuanyuanli85/Stacked_Hourglass_Network_Keras) and also refer official implementation [pose-hg-train](https://github.com/princeton-vl/pose-hg-train) & pytorch version [pytorch-pose](https://github.com/bearpaw/pytorch-pose). This repo is implemented with tf.keras for model training and TFLite for on-device deployment. Support different model type and technologies:
 
+#### Model Type
 - [x] Standard stacked hourglass model
 - [x] Mobile stacked hourglass model (using depthwise separable conv)
 - [x] Tiny stacked hourglass model (128 feature channels)
 - [x] Configuable stack number
+
+#### Loss
+- [x] Mean Squared Error loss
+- [x] Mean Absolute Error loss
+- [x] Smooth L1 loss
+- [x] Huber loss
 
 
 ## Guide of train/evaluate/demo
@@ -119,9 +126,10 @@ usage: train.py [-h] [--num_stacks NUM_STACKS] [--mobile] [--tiny]
                 [--weights_path WEIGHTS_PATH] [--dataset_path DATASET_PATH]
                 [--classes_path CLASSES_PATH]
                 [--matchpoint_path MATCHPOINT_PATH] [--batch_size BATCH_SIZE]
-                [--optimizer OPTIMIZER] [--learning_rate LEARNING_RATE]
-                [--init_epoch INIT_EPOCH] [--total_epoch TOTAL_EPOCH]
-                [--gpu_num GPU_NUM]
+                [--optimizer OPTIMIZER]
+                [--loss_type {mse,mae,smooth_l1,huber}]
+                [--learning_rate LEARNING_RATE] [--init_epoch INIT_EPOCH]
+                [--total_epoch TOTAL_EPOCH] [--gpu_num GPU_NUM]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -130,7 +138,8 @@ optional arguments:
   --mobile              use depthwise conv in hourglass'
   --tiny                tiny network for speed, feature channel=128
   --model_image_size MODEL_IMAGE_SIZE
-                        model image input size as <height>x<width>, default 256x256
+                        model image input size as <height>x<width>,
+                        default=256x256
   --weights_path WEIGHTS_PATH
                         Pretrained model/weights file for fine tune
   --dataset_path DATASET_PATH
@@ -148,6 +157,9 @@ optional arguments:
   --optimizer OPTIMIZER
                         optimizer for training (adam/rmsprop/sgd),
                         default=rmsprop
+  --loss_type {mse,mae,smooth_l1,huber}
+                        loss type for training (mse/mae/smooth_l1/huber),
+                        default=mse
   --learning_rate LEARNING_RATE
                         Initial learning rate, default=0.0005
   --init_epoch INIT_EPOCH
