@@ -21,10 +21,10 @@ def rknn_convert(input_model, output_model, model_input_shape, num_stacks, datas
 
     # Load tensorflow model
     print('--> Loading model')
-    output_tensor_name = str(num_stacks-1) + '_conv_1x1_parts/BiasAdd'
+    output_tensor_names = [str(num_stacks-1) + '_conv_1x1_parts/BiasAdd']
     ret = rknn.load_tensorflow(tf_pb=input_model,
                                inputs=['image_input'],
-                               outputs=[output_tensor_name],
+                               outputs=output_tensor_names,
                                input_size_list=[model_input_shape+(3,)],
                                predef_file=None)
     #ret = rknn.load_onnx(model=input_model)
@@ -57,7 +57,7 @@ def main():
     parser.add_argument('--model_input_shape', required=False, type=str, help='model image input shape as <height>x<width>, default=%(default)s', default='256x256')
     parser.add_argument("--num_stacks", required=False, type=int, help='number of hourglass stacks, default=%(default)s', default=2)
     parser.add_argument('--dataset_file', required=True, type=str, help='data samples txt file')
-    parser.add_argument('--target_platform', required=False, type=str, default='rv1126', choices=['rk1808', 'rk3399pro', 'rv1109', 'rv1126'], help = "target Rockchip platform, default=%(default)s")
+    parser.add_argument('--target_platform', required=False, type=str, default='rv1126', choices=['rk1808', 'rk3399pro', 'rv1109', 'rv1126'], help='target Rockchip platform, default=%(default)s')
 
     args = parser.parse_args()
     height, width = args.model_input_shape.split('x')

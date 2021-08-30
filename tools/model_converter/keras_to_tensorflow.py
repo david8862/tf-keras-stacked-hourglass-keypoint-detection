@@ -19,8 +19,8 @@ if tf.__version__.startswith('2'):
     from tensorflow.compat.v1.keras.models import model_from_json, model_from_yaml, load_model
     tf.disable_eager_execution()
 
-sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
-from common.utils import get_custom_objects
+#sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
+#from common.utils import get_custom_objects
 
 K.set_learning_phase(0)
 
@@ -98,9 +98,10 @@ def keras_to_tensorflow(args):
     else:
         K.set_image_data_format('channels_last')
 
-    custom_object_dict = get_custom_objects()
+    #custom_object_dict = get_custom_objects()
 
-    model = load_input_model(args.input_model, args.input_model_json, args.input_model_yaml, custom_objects=custom_object_dict)
+    #model = load_input_model(args.input_model, args.input_model_json, args.input_model_yaml, custom_objects=custom_object_dict)
+    model = load_input_model(args.input_model, args.input_model_json, args.input_model_yaml)
 
     # TODO(amirabdi): Support networks with multiple inputs
     orig_output_node_names = [node.name.split(':')[0] for node in model.outputs]
