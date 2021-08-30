@@ -253,6 +253,14 @@ optional arguments:
 
 The default PCK metric (score_threshold=0.5, normalize=6.4) will also be applied on validation dataset during training process for picking best checkpoints.
 
+Some experiment on MPII Human Pose dataset:
+
+| Model name | InputSize | TrainSet | TestSet | PCK@0.5 | FLOPS | Param | Speed | Ps |
+| ----- | ------ | ------ | ------ | ----- | ----- | ----- | ----- | ----- |
+| [hg_s2_256_256](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/releases/download/v1.0.1/hg_s2_256_256_mpii.tar.gz) | 256x256 | MPII | MPII | 0.83 | 20.28G | 6.57M | 20.9ms | Keras on Titan XP |
+| [hg_s2_mobile_256_256](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/releases/download/v1.0.1/hg_s2_mobile_256_256_mpii.tar.gz) | 256x256 | MPII | MPII | 0.824 | 9.37G | 2.75M | 20.8ms | Keras on Titan XP |
+
+
 Some experiment on MSCOCO Keypoints 2017 dataset:
 
 | Model name | InputSize | TrainSet | TestSet | PCK@0.5 | COCO AP | COCO AP50 | FLOPS | Param | Speed | Ps |
