@@ -4,7 +4,14 @@ import os, random
 import numpy as np
 from PIL import Image
 import json
-from common.data_utils import crop, horizontal_flip, vertical_flip, normalize_image, transform_kp, generate_gtmap
+from common.data_utils import crop_image, horizontal_flip, vertical_flip, normalize_image, transform_keypoints, generate_gtmap
+
+# by default, Stacked Hourglass model use output_stride = 4, which means:
+#
+#   input image:    256 x 256 x 3
+#   output heatmap: 64 x 64 x num_classes
+# 
+HG_OUTPUT_STRIDE = 4
 
 
 class hourglass_dataset(object):
@@ -15,8 +22,8 @@ class hourglass_dataset(object):
         self.class_names = class_names
         self.num_classes = len(class_names)
         self.input_size = input_size
-        # output heatmap size is 1/4 of input size
-        self.output_size = (self.input_size[0]//4, self.input_size[1]//4)
+        # output heatmap size should be 1/HG_OUTPUT_STRIDE of input size
+        self.output_size = (self.input_size[0]//HG_OUTPUT_STRIDE, self.input_size[1]//HG_OUTPUT_STRIDE)
         self.dataset_name = None
         self.annotations = self._load_image_annotation()
         self.horizontal_matchpoints, self.vertical_matchpoints = self._get_matchpoint_list(matchpoints)
@@ -93,8 +100,8 @@ class hourglass_dataset(object):
     def generator(self, batch_size, num_hgstack, sigma=1, with_meta=False, is_shuffle=False,
                   rot_flag=False, scale_flag=False, h_flip_flag=False, v_flip_flag=False):
         '''
-        Input:  batch_size * input_size  * Channel (3)
-        Output: batch_size * oures  * num_classes
+        Input:  batch_size * input_size  * channel (3)
+        Output: batch_size * output_size * num_classes
         '''
         if not self.is_train:
             assert (is_shuffle == False), 'shuffle must be off in val model'
@@ -152,7 +159,7 @@ class hourglass_dataset(object):
         joints = np.array(annotation['joint_self'])
         scale = annotation['scale_provided']
 
-        # Adjust center/scale slightly to avoid cropping limbs
+        # adjust center/scale slightly to avoid cropping limbs
         if center[0] != -1:
             center[1] = center[1] + 15 * scale
             scale = scale * 1.25
@@ -176,7 +183,7 @@ class hourglass_dataset(object):
             rot = 0
 
         # crop out single person area, resize to input size res and normalize image
-        image = crop(image, center, scale, self.input_size, rot)
+        image = crop_image(image, center, scale, self.input_size, rot)
 
         # in case we got an empty image, bypass the sample
         if image is None:
@@ -185,14 +192,14 @@ class hourglass_dataset(object):
         # normalize image
         image = normalize_image(image, self.get_color_mean())
 
-        # transform keypoints to crop image reference
-        transformedKps = transform_kp(joints, center, scale, self.output_size, rot)
+        # transform keypoints to cropped image reference
+        transformed_keypoints = transform_keypoints(joints, center, scale, self.output_size, rot)
         # generate ground truth point heatmap
-        gtmap = generate_gtmap(transformedKps, sigma, self.output_size)
+        gtmap = generate_gtmap(transformed_keypoints, sigma, self.output_size)
 
         # meta info
         metainfo = {'sample_index': sample_index, 'center': center, 'scale': scale,
-                    'pts': joints, 'tpts': transformedKps, 'name': imagefile}
+                    'pts': joints, 'tpts': transformed_keypoints, 'name': imagefile}
 
         return image, gtmap, metainfo
 

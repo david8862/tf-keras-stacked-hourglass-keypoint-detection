@@ -10,7 +10,8 @@ from tensorflow.keras.models import Model, load_model
 import tensorflow.keras.backend as K
 
 from hourglass.model import get_hourglass_model
-from hourglass.postprocess import post_process_heatmap, post_process_heatmap_single
+from hourglass.data import HG_OUTPUT_STRIDE
+from hourglass.postprocess import post_process_heatmap, post_process_heatmap_simple
 from common.data_utils import preprocess_image
 from common.utils import get_classes, get_skeleton, render_skeleton, optimize_tf_gpu
 
@@ -76,7 +77,7 @@ class Hourglass(object):
 
         # construct model and load weights.
         hourglass_model = get_hourglass_model(num_classes, self.num_stacks, self.num_channels, input_size=self.model_image_size, mobile=self.mobile)
-        hourglass_model.load_weights(weights_path, by_name=True)#, skip_mismatch=True)
+        hourglass_model.load_weights(weights_path, by_name=False)#, skip_mismatch=True)
         hourglass_model.summary()
         return hourglass_model
 
@@ -132,7 +133,7 @@ class Hourglass(object):
             # rescale keypoints back to origin image size
             keypoints_dict = dict()
             for i, keypoint in enumerate(keypoints):
-                keypoints_dict[self.class_names[i]] = (keypoint[0] * scale[0] * 4 + xmin, keypoint[1] * scale[1] * 4 + ymin, keypoint[2])
+                keypoints_dict[self.class_names[i]] = (keypoint[0] * scale[0] * HG_OUTPUT_STRIDE + xmin, keypoint[1] * scale[1] * HG_OUTPUT_STRIDE + ymin, keypoint[2])
 
             # draw bbox rectangle on image
             cv2.rectangle(image_array, (raw_xmin, raw_ymin), (raw_xmax, raw_ymax), (255, 0, 0), 1, cv2.LINE_AA)
@@ -198,7 +199,7 @@ class Hourglass(object):
             # rescale keypoints back to origin image size
             keypoints_dict = dict()
             for j, keypoint in enumerate(keypoints):
-                keypoints_dict[self.class_names[j]] = (keypoint[0] * scale[0] * 4 + xmin, keypoint[1] * scale[1] * 4 + ymin, keypoint[2])
+                keypoints_dict[self.class_names[j]] = (keypoint[0] * scale[0] * HG_OUTPUT_STRIDE + xmin, keypoint[1] * scale[1] * HG_OUTPUT_STRIDE + ymin, keypoint[2])
 
             # draw bbox rectangle on image
             cv2.rectangle(image_array, (raw_xmin, raw_ymin), (raw_xmax, raw_ymax), (255, 0, 0), 1, cv2.LINE_AA)
@@ -220,7 +221,7 @@ class Hourglass(object):
         heatmap = prediction[0]
 
         # parse out predicted keypoint from heatmap
-        keypoints = post_process_heatmap(heatmap)
+        keypoints = post_process_heatmap_simple(heatmap)
 
         return keypoints
 
@@ -234,7 +235,7 @@ class Hourglass(object):
         batch_keypoints = []
         for heatmap in prediction:
             # parse out predicted keypoint from heatmap
-            keypoints = post_process_heatmap(heatmap)
+            keypoints = post_process_heatmap_simple(heatmap)
             batch_keypoints.append(keypoints)
 
         return batch_keypoints

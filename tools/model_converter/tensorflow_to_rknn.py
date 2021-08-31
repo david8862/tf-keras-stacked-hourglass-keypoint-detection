@@ -21,7 +21,7 @@ def rknn_convert(input_model, output_model, model_input_shape, num_stacks, datas
 
     # Load tensorflow model
     print('--> Loading model')
-    output_tensor_names = [str(num_stacks-1) + '_conv_1x1_parts/BiasAdd']
+    output_tensor_names = [str(num_stacks-1) + '_conv_1x1_predict/BiasAdd']
     ret = rknn.load_tensorflow(tf_pb=input_model,
                                inputs=['image_input'],
                                outputs=output_tensor_names,

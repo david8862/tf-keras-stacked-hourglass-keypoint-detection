@@ -19,8 +19,8 @@ import MNN
 import onnxruntime
 
 from hourglass.data import hourglass_dataset
-from hourglass.postprocess import post_process_heatmap
-from common.data_utils import invert_transform_kp
+from hourglass.postprocess import post_process_heatmap, post_process_heatmap_simple
+from common.data_utils import invert_transform_keypoints
 from common.model_utils import get_normalize
 from common.utils import touchdir, get_classes, get_skeleton, render_skeleton, optimize_tf_gpu
 
@@ -169,7 +169,7 @@ def revert_keypoints(keypoints, metainfo, heatmap_size):
     # invert transform keypoints based on center & scale
     center = metainfo['center']
     scale = metainfo['scale']
-    reverted_keypoints = invert_transform_kp(keypoints, center, scale, heatmap_size, rot=0)
+    reverted_keypoints = invert_transform_keypoints(keypoints, center, scale, heatmap_size, rot=0)
 
     return reverted_keypoints
 
@@ -401,7 +401,7 @@ def eval_PCK(model, model_format, eval_dataset, class_names, score_threshold, no
         heatmap_size = heatmap.shape[0:2]
 
         # get predict keypoints from heatmap
-        pred_keypoints = post_process_heatmap(heatmap, conf_threshold)
+        pred_keypoints = post_process_heatmap_simple(heatmap, conf_threshold)
         pred_keypoints = np.array(pred_keypoints)
 
         # get ground truth keypoints (transformed)

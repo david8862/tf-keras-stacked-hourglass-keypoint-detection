@@ -14,7 +14,8 @@ from tensorflow.lite.python import interpreter as interpreter_wrapper
 import tensorflow as tf
 
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
-from hourglass.postprocess import post_process_heatmap, post_process_heatmap_single
+from hourglass.data import HG_OUTPUT_STRIDE
+from hourglass.postprocess import post_process_heatmap, post_process_heatmap_simple
 from common.data_utils import preprocess_image
 from common.utils import get_classes, get_skeleton, render_skeleton
 
@@ -24,12 +25,12 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 def process_heatmap(heatmap, image, scale, class_names, skeleton_lines):
     start = time.time()
     # parse out predicted keypoint from heatmap
-    keypoints = post_process_heatmap(heatmap)
+    keypoints = post_process_heatmap_simple(heatmap)
 
     # rescale keypoints back to origin image size
     keypoints_dict = dict()
     for i, keypoint in enumerate(keypoints):
-        keypoints_dict[class_names[i]] = (keypoint[0] * scale[0] * 4, keypoint[1] * scale[1] * 4, keypoint[2])
+        keypoints_dict[class_names[i]] = (keypoint[0] * scale[0] * HG_OUTPUT_STRIDE, keypoint[1] * scale[1] * HG_OUTPUT_STRIDE, keypoint[2])
 
     end = time.time()
     print("PostProcess time: {:.8f}ms".format((end - start) * 1000))

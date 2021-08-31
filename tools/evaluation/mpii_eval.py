@@ -7,8 +7,8 @@ from tqdm import tqdm
 from tensorflow.keras.models import load_model
 
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
-from hourglass.data import hourglass_dataset
-from hourglass.postprocess import post_process_heatmap
+from hourglass.data import hourglass_dataset, HG_OUTPUT_STRIDE
+from hourglass.postprocess import post_process_heatmap, post_process_heatmap_simple
 from common.data_utils import transform
 from common.utils import get_classes
 
@@ -17,7 +17,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 def get_predicted_kp_from_htmap(heatmap, meta, outres):
     # nms to get location
-    kplst = post_process_heatmap(heatmap)
+    kplst = post_process_heatmap_simple(heatmap)
     kps = np.array(kplst)
 
     # use meta information to transform back to original image
@@ -173,7 +173,7 @@ def main(args):
     # check for any invalid input & output size
     assert None not in input_size, 'Invalid input size.'
     assert None not in output_size, 'Invalid output size.'
-    assert output_size[0] == input_size[0]//4 and output_size[1] == input_size[1]//4, 'output size should be 1/4 of input size.'
+    assert output_size[0] == input_size[0]//HG_OUTPUT_STRIDE and output_size[1] == input_size[1]//HG_OUTPUT_STRIDE, 'output size should be 1/{} of input size.'.format(HG_OUTPUT_STRIDE)
 
     # prepare validation dataset
     valdata = hourglass_dataset(args.dataset_path, class_names,

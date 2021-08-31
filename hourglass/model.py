@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""create Stacked Hourglass model for train."""
 import os, sys
 from tensorflow.keras.layers import Input
 from tensorflow.keras.models import Model
@@ -14,7 +15,7 @@ def get_hourglass_model(num_classes, num_stacks, num_channels, input_size=None, 
     else:
         bottleneck = bottleneck_block
 
-    #prepare input tensor
+    # prepare input tensor
     if input_size:
         input_tensor = Input(shape=(input_size[0], input_size[1], 3), name='image_input')
     else:
@@ -31,6 +32,7 @@ def get_hourglass_model(num_classes, num_stacks, num_channels, input_size=None, 
         head_next_stage, head_to_loss = hourglass_module(head_next_stage, num_classes, num_channels, bottleneck, i)
         outputs.append(head_to_loss)
 
+    # create multi output model for intermediate supervision training process
     model = Model(inputs=input_tensor, outputs=outputs)
 
     return model

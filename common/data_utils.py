@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Data process utility functions."""
 import numpy as np
 from PIL import Image
 import cv2
@@ -45,42 +46,42 @@ def transform(pt, center, scale, res, invert=0, rot=0):
     return new_pt[:2].astype(int) + 1
 
 
-def crop(img, center, scale, res, rot=0):
-    # Preprocessing for efficient cropping
-    ht, wd = img.shape[0], img.shape[1]
-    sf = scale * 200.0 / res[0]
-    if sf < 2:
-        sf = 1
+def crop_image(img, center, scale, res, rot=0):
+    # preprocessing for efficient cropping
+    height, width = img.shape[0:2]
+    scale_factor = scale * 200.0 / res[0]
+    if scale_factor < 2:
+        scale_factor = 1
     else:
-        new_size = int(np.math.floor(max(ht, wd) / sf))
-        new_ht = int(np.math.floor(ht / sf))
-        new_wd = int(np.math.floor(wd / sf))
-        img = np.array(Image.fromarray(img).resize((new_wd, new_ht), Image.BICUBIC))
-        center = center * 1.0 / sf
-        scale = scale / sf
+        new_size = int(np.math.floor(max(height, width) / scale_factor))
+        new_height = int(np.math.floor(height / scale_factor))
+        new_width = int(np.math.floor(width / scale_factor))
+        img = np.array(Image.fromarray(img).resize((new_width, new_height), Image.BICUBIC))
+        center = center * 1.0 / scale_factor
+        scale = scale / scale_factor
 
-    # Upper left point
-    ul = np.array(transform([0, 0], center, scale, res, invert=1))
-    # Bottom right point
-    br = np.array(transform(res, center, scale, res, invert=1))
+    # upper left point
+    upper_left = np.array(transform([0, 0], center, scale, res, invert=1))
+    # bottom right point
+    bottom_right = np.array(transform(res, center, scale, res, invert=1))
 
     # Padding so that when rotated proper amount of context is included
-    pad = int(np.linalg.norm(br - ul) / 2 - float(br[1] - ul[1]) / 2)
+    pad = int(np.linalg.norm(bottom_right - upper_left) / 2 - float(bottom_right[1] - upper_left[1]) / 2)
     if not rot == 0:
-        ul -= pad
-        br += pad
+        upper_left -= pad
+        bottom_right += pad
 
-    new_shape = [br[1] - ul[1], br[0] - ul[0]]
+    new_shape = [bottom_right[1] - upper_left[1], bottom_right[0] - upper_left[0]]
     if len(img.shape) > 2:
         new_shape += [img.shape[2]]
     new_img = np.zeros(new_shape, dtype=np.uint8)
 
     # Range to fill new array
-    new_x = max(0, -ul[0]), min(br[0], len(img[0])) - ul[0]
-    new_y = max(0, -ul[1]), min(br[1], len(img)) - ul[1]
+    new_x = max(0, -upper_left[0]), min(bottom_right[0], len(img[0])) - upper_left[0]
+    new_y = max(0, -upper_left[1]), min(bottom_right[1], len(img)) - upper_left[1]
     # Range to sample from original image
-    old_x = max(0, ul[0]), min(len(img[0]), br[0])
-    old_y = max(0, ul[1]), min(len(img), br[1])
+    old_x = max(0, upper_left[0]), min(len(img[0]), bottom_right[0])
+    old_y = max(0, upper_left[1]), min(len(img), bottom_right[1])
     new_img[new_y[0]:new_y[1], new_x[0]:new_x[1]] = img[old_y[0]:old_y[1], old_x[0]:old_x[1]]
 
     if not rot == 0:
@@ -165,10 +166,10 @@ def draw_labelmap(img, pt, sigma, type='Gaussian'):
     # Adopted from https://github.com/anewell/pose-hg-train/blob/master/src/pypose/draw.py
 
     # Check that any part of the gaussian is in-bounds
-    ul = [int(pt[0] - 3 * sigma), int(pt[1] - 3 * sigma)]
-    br = [int(pt[0] + 3 * sigma + 1), int(pt[1] + 3 * sigma + 1)]
-    if (ul[0] >= img.shape[1] or ul[1] >= img.shape[0] or
-            br[0] < 0 or br[1] < 0):
+    upper_left = [int(pt[0] - 3 * sigma), int(pt[1] - 3 * sigma)]
+    bottom_right = [int(pt[0] + 3 * sigma + 1), int(pt[1] + 3 * sigma + 1)]
+    if (upper_left[0] >= img.shape[1] or upper_left[1] >= img.shape[0] or
+            bottom_right[0] < 0 or bottom_right[1] < 0):
         # If not, just return the image as is
         return img
 
@@ -184,17 +185,18 @@ def draw_labelmap(img, pt, sigma, type='Gaussian'):
         g = sigma / (((x - x0) ** 2 + (y - y0) ** 2 + sigma ** 2) ** 1.5)
 
     # Usable gaussian range
-    g_x = max(0, -ul[0]), min(br[0], img.shape[1]) - ul[0]
-    g_y = max(0, -ul[1]), min(br[1], img.shape[0]) - ul[1]
+    g_x = max(0, -upper_left[0]), min(bottom_right[0], img.shape[1]) - upper_left[0]
+    g_y = max(0, -upper_left[1]), min(bottom_right[1], img.shape[0]) - upper_left[1]
     # Image range
-    img_x = max(0, ul[0]), min(br[0], img.shape[1])
-    img_y = max(0, ul[1]), min(br[1], img.shape[0])
+    img_x = max(0, upper_left[0]), min(bottom_right[0], img.shape[1])
+    img_y = max(0, upper_left[1]), min(bottom_right[1], img.shape[0])
 
     img[img_y[0]:img_y[1], img_x[0]:img_x[1]] = g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
     return img
 
 
-def transform_kp(joints, center, scale, res, rot):
+def transform_keypoints(joints, center, scale, res, rot):
+    # Transform keypoints to single person image reference
     newjoints = np.copy(joints)
     for i in range(joints.shape[0]):
         if joints[i, 0] > 0 and joints[i, 1] > 0:
@@ -203,7 +205,7 @@ def transform_kp(joints, center, scale, res, rot):
     return newjoints
 
 
-def invert_transform_kp(joints, center, scale, res, rot):
+def invert_transform_keypoints(joints, center, scale, res, rot):
     newjoints = np.copy(joints)
     for i in range(joints.shape[0]):
         if joints[i, 0] > 0 and joints[i, 1] > 0:

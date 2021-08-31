@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import os, sys
-from tqdm import tqdm
+import os
 from tensorflow.keras.callbacks import Callback
-from hourglass.postprocess import post_process_heatmap
 from hourglass.data import hourglass_dataset
 from common.model_utils import get_normalize
 from eval import eval_PCK
