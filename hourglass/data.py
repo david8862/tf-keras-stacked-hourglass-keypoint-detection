@@ -10,7 +10,7 @@ from common.data_utils import crop_image, horizontal_flip, vertical_flip, normal
 #
 #   input image:    256 x 256 x 3
 #   output heatmap: 64 x 64 x num_classes
-# 
+#
 HG_OUTPUT_STRIDE = 4
 
 

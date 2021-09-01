@@ -9,7 +9,7 @@ from tensorflow.keras.callbacks import TensorBoard, TerminateOnNaN
 from hourglass.model import get_hourglass_model
 from hourglass.data import hourglass_dataset
 from hourglass.loss import get_loss
-from hourglass.callbacks import EvalCallBack
+from hourglass.callbacks import EvalCallBack, CheckpointCleanCallBack
 from common.utils import get_classes, get_matchpoints, get_model_type, optimize_tf_gpu
 from common.model_utils import get_optimizer
 
@@ -40,8 +40,19 @@ def main(args):
     else:
         num_channels = 256
         #input_size = (256, 256)
-
     input_size = args.model_image_size
+
+    if args.mixed_precision:
+        tf_major_version = float(tf.__version__[:3])
+        if tf_major_version >= 2.1:
+            # apply mixed_precision for valid TF version
+            from tensorflow.keras.mixed_precision import experimental as mixed_precision
+
+            policy = mixed_precision.Policy('mixed_float16')
+            mixed_precision.set_policy(policy)
+        else:
+            raise ValueError('Tensorflow {} does not support mixed precision'.format(tf.__version__))
+
 
     # get train/val dataset
     train_dataset = hourglass_dataset(args.dataset_path, class_names,
@@ -55,12 +66,16 @@ def main(args):
     # callbacks for training process
     tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=0, write_graph=False, write_grads=False, write_images=False, update_freq='batch')
     eval_callback = EvalCallBack(log_dir, args.dataset_path, class_names, input_size, model_type)
+    checkpoint_clean = CheckpointCleanCallBack(log_dir, max_val_keep=5)
     terminate_on_nan = TerminateOnNaN()
-    callbacks = [tensorboard, eval_callback, terminate_on_nan]
+
+    callbacks = [tensorboard, eval_callback, terminate_on_nan, checkpoint_clean]
 
     # prepare optimizer
+    steps_per_epoch = max(1, train_dataset.get_dataset_size()//args.batch_size)
+    decay_steps = steps_per_epoch * (args.total_epoch - args.init_epoch)
+    optimizer = get_optimizer(args.optimizer, args.learning_rate, decay_type=args.decay_type, decay_steps=decay_steps)
     #optimizer = RMSprop(lr=5e-4)
-    optimizer = get_optimizer(args.optimizer, args.learning_rate, decay_type=None)
 
     # prepare loss function
     loss_func = get_loss(args.loss_type)
@@ -129,12 +144,16 @@ if __name__ == "__main__":
     # Training options
     parser.add_argument("--batch_size", type=int, required=False, default=16,
         help='batch size for training, default=%(default)s')
-    parser.add_argument('--optimizer', type=str,required=False, default='rmsprop',
+    parser.add_argument('--optimizer', type=str, required=False, default='rmsprop',
         help = "optimizer for training (adam/rmsprop/sgd), default=%(default)s")
     parser.add_argument('--loss_type', type=str, required=False, default='mse', choices=['mse', 'mae', 'smooth_l1', 'huber'],
         help = "loss type for training (mse/mae/smooth_l1/huber), default=%(default)s")
-    parser.add_argument('--learning_rate', type=float,required=False, default=5e-4,
+    parser.add_argument('--learning_rate', type=float, required=False, default=5e-4,
         help = "Initial learning rate, default=%(default)s")
+    parser.add_argument('--decay_type', type=str, required=False, default=None, choices=[None, 'cosine', 'exponential', 'polynomial', 'piecewise_constant'],
+        help = "Learning rate decay type, default=%(default)s")
+    parser.add_argument('--mixed_precision', default=False, action="store_true",
+        help='Use mixed precision mode in training, only for TF>2.1')
     parser.add_argument("--init_epoch", type=int, required=False, default=0,
         help="initial training epochs for fine tune training, default=%(default)s")
     parser.add_argument("--total_epoch", type=int, required=False, default=100,

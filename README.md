@@ -18,6 +18,14 @@ An end-to-end single-object keypoint estimation pipeline with Stacked-Hourglass 
 - [x] Smooth L1 loss
 - [x] Huber loss
 
+#### Train tech
+- [x] Dynamic learning rate decay (Cosine/Exponential/Polynomial/PiecewiseConstant)
+- [x] Mixed precision training (valid for TF-2.1 and later)
+- [x] Multi-GPU training with SyncBatchNorm support (valid for TF-2.2 and later)
+
+#### On-device deployment
+- [x] Tensorflow-Lite Float32/UInt8 model inference
+- [ ] MNN Float32/UInt8 model inference
 
 ## Guide of train/evaluate/demo
 
