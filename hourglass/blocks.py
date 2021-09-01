@@ -162,11 +162,13 @@ def bottom_block(downsample_f8, bottleneck, hg_id, num_channels):
       2. 3 bottleneck blocks for main branch
       3. add shortcut and main
     """
-    downsample_f8_short = bottleneck(downsample_f8, num_channels, str(hg_id) + "_downsample_f8_short")
+    hg_name = 'hg' + str(hg_id)
 
-    _x = bottleneck(downsample_f8, num_channels, str(hg_id) + "_downsample_f8_1")
-    _x = bottleneck(_x, num_channels, str(hg_id) + "_downsample_f8_2")
-    _x = bottleneck(_x, num_channels, str(hg_id) + "_downsample_f8_3")
+    downsample_f8_short = bottleneck(downsample_f8, num_channels, hg_name+"_downsample_f8_short")
+
+    _x = bottleneck(downsample_f8, num_channels, hg_name+"_downsample_f8_1")
+    _x = bottleneck(_x, num_channels, hg_name+"_downsample_f8_2")
+    _x = bottleneck(_x, num_channels, hg_name+"_downsample_f8_3")
 
     upsample_f8 = Add()([_x, downsample_f8_short])
 
@@ -187,12 +189,14 @@ def create_upsample_blocks(downsample_features, bottleneck, hg_id, num_channels)
       upsample_f2 feature: 32 x 32 x num_channels
       upsample_f1 feature: 64 x 64 x num_channels
     """
+    hg_name = 'hg' + str(hg_id)
+
     downsample_f1, downsample_f2, downsample_f4, downsample_f8 = downsample_features
 
     upsample_f8 = bottom_block(downsample_f8, bottleneck, hg_id, num_channels)
-    upsample_f4 = connect_downsample_upsample(downsample_f4, upsample_f8, bottleneck, num_channels, 'hg'+str(hg_id)+'_upsample_f4')
-    upsample_f2 = connect_downsample_upsample(downsample_f2, upsample_f4, bottleneck, num_channels, 'hg'+str(hg_id)+'_upsample_f2')
-    upsample_f1 = connect_downsample_upsample(downsample_f1, upsample_f2, bottleneck, num_channels, 'hg'+str(hg_id)+'_upsample_f1')
+    upsample_f4 = connect_downsample_upsample(downsample_f4, upsample_f8, bottleneck, num_channels, hg_name+'_upsample_f4')
+    upsample_f2 = connect_downsample_upsample(downsample_f2, upsample_f4, bottleneck, num_channels, hg_name+'_upsample_f2')
+    upsample_f1 = connect_downsample_upsample(downsample_f1, upsample_f2, bottleneck, num_channels, hg_name+'_upsample_f1')
 
     return upsample_f1
 
@@ -203,18 +207,20 @@ def create_heads(x, upsample_feature, num_classes, hg_id, num_channels):
       * one head for next stage: head_next_stage
       * one head for intermediate supervision (loss) or final prediction: head_predict
     """
-    head = Conv2D(num_channels, kernel_size=(1, 1), activation='relu', padding='same', name=str(hg_id) + '_conv_1x1_1')(upsample_feature)
+    hg_name = 'hg' + str(hg_id)
+
+    head = Conv2D(num_channels, kernel_size=(1, 1), activation='relu', padding='same', name=hg_name+'_conv_1x1_1')(upsample_feature)
     head = BatchNormalization()(head)
 
     # for head as intermediate supervision, use 'linear' as activation.
     head_predict = Conv2D(num_classes, kernel_size=(1, 1), activation='linear', padding='same',
-                        name=str(hg_id) + '_conv_1x1_predict')(head)
+                        name=hg_name+'_conv_1x1_predict')(head)
 
     # use linear activation
     head = Conv2D(num_channels, kernel_size=(1, 1), activation='linear', padding='same',
-                  name=str(hg_id) + '_conv_1x1_2')(head)
+                  name=hg_name+'_conv_1x1_2')(head)
     head_m = Conv2D(num_channels, kernel_size=(1, 1), activation='linear', padding='same',
-                    name=str(hg_id) + '_conv_1x1_3')(head_predict)
+                    name=hg_name+'_conv_1x1_3')(head_predict)
 
     # merge heads for next stage
     head_next_stage = Add()([head, head_m, x])

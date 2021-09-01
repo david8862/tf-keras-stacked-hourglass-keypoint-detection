@@ -57,6 +57,11 @@ def main(args):
     # get train/val dataset
     train_dataset = hourglass_dataset(args.dataset_path, class_names,
                                 input_size=input_size, is_train=True, matchpoints=matchpoints)
+    val_dataset = hourglass_dataset(args.dataset_path, class_names,
+                              input_size=input_size, is_train=False, matchpoints=None)
+
+    num_train = train_dataset.get_dataset_size()
+    num_val = val_dataset.get_dataset_size()
 
     train_gen = train_dataset.generator(args.batch_size, args.num_stacks, sigma=1, is_shuffle=True,
                                         rot_flag=True, scale_flag=True, h_flip_flag=True, v_flip_flag=True)
@@ -72,7 +77,7 @@ def main(args):
     callbacks = [tensorboard, eval_callback, terminate_on_nan, checkpoint_clean]
 
     # prepare optimizer
-    steps_per_epoch = max(1, train_dataset.get_dataset_size()//args.batch_size)
+    steps_per_epoch = max(1, num_train//args.batch_size)
     decay_steps = steps_per_epoch * (args.total_epoch - args.init_epoch)
     optimizer = get_optimizer(args.optimizer, args.learning_rate, decay_type=args.decay_type, decay_steps=decay_steps)
     #optimizer = RMSprop(lr=5e-4)
@@ -105,8 +110,9 @@ def main(args):
         print('Load weights {}.'.format(args.weights_path))
 
     # start training
+    print('Train on {} samples, val on {} samples, with batch size {}, input_size {}.'.format(num_train, num_val, args.batch_size, input_size))
     model.fit_generator(generator=train_gen,
-                        steps_per_epoch=train_dataset.get_dataset_size() // args.batch_size,
+                        steps_per_epoch=num_train // args.batch_size,
                         epochs=args.total_epoch,
                         initial_epoch=args.init_epoch,
                         workers=1,

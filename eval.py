@@ -246,7 +246,7 @@ def hourglass_predict_tflite(interpreter, image_data):
 def hourglass_predict_pb(model, image_data):
     # NOTE: TF 1.x frozen pb graph need to specify input/output tensor name
     # so we need to hardcode the input/output tensor names here to get them from model
-    output_tensor_name = 'graph/1_conv_1x1_parts/BiasAdd:0'
+    output_tensor_name = 'graph/hg1_conv_1x1_predict/BiasAdd:0'
 
     # assume only 1 input tensor for image
     input_tensor_name = 'graph/image_input:0'
