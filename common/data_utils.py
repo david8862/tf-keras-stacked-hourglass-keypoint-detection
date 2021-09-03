@@ -2,8 +2,302 @@
 # -*- coding: utf-8 -*-
 """Data process utility functions."""
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageEnhance
 import cv2
+
+
+def rand(a=0, b=1):
+    return np.random.rand()*(b-a) + a
+
+
+def random_horizontal_flip(image, joints, center, matchpoints=None, prob=.5):
+    """
+    Random horizontal flip for image and keypoints
+
+    # Arguments
+        image: origin image for horizontal flip
+            numpy array containing image data
+        joints: keypoints numpy array, shape=(num_keypoints, 3)
+            each keypoints with format (x, y, visibility)
+        center: center points array with format (x, y)
+        matchpoints: list of tuple for keypoint pair index,
+            which need to swap in horizontal flip
+        prob: probability for random flip,
+            scalar to control the flip probability.
+
+    # Returns
+        flip_image: fliped numpy array image.
+        joints: fliped keypoints numpy array
+        flip_center: fliped center points numpy array
+    """
+    flip = rand() < prob
+    if not flip:
+        return image, joints, center
+
+    joints = np.copy(joints)
+
+    # some keypoint pairs also need to be fliped
+    # on new image
+    #matchpoints = (
+        #[0, 5],  # ankle
+        #[1, 4],  # knee
+        #[2, 3],  # hip
+        #[10, 15],  # wrist
+        #[11, 14],  # elbow
+        #[12, 13]  # shoulder
+    #)
+
+    org_height, org_width, channels = image.shape
+
+    # horizontal flip image: flipCode=1
+    flip_image = cv2.flip(image, flipCode=1)
+
+    # horizontal flip each joints
+    joints[:, 0] = org_width - joints[:, 0]
+
+    # horizontal swap matched keypoints
+    if matchpoints and len(matchpoints) != 0:
+        for i, j in matchpoints:
+            temp = np.copy(joints[i, :])
+            joints[i, :] = joints[j, :]
+            joints[j, :] = temp
+
+    # horizontal flip center
+    flip_center = center
+    flip_center[0] = org_width - center[0]
+
+    return flip_image, joints, flip_center
+
+
+def random_vertical_flip(image, joints, center, matchpoints=None, prob=.5):
+    """
+    Random vertical flip for image and keypoints
+
+    # Arguments
+        image: origin image for vertical flip
+            numpy array containing image data
+        joints: keypoints numpy array, shape=(num_keypoints, 3)
+            each keypoints with format (x, y, visibility)
+        center: center points array with format (x, y)
+        matchpoints: list of tuple for keypoint pair index,
+            which need to swap in vertical flip
+        prob: probability for random flip,
+            scalar to control the flip probability.
+
+    # Returns
+        flip_image: fliped numpy array image.
+        joints: fliped keypoints numpy array
+        flip_center: fliped center points numpy array
+    """
+    flip = rand() < prob
+    if not flip:
+        return image, joints, center
+
+    joints = np.copy(joints)
+
+    # some keypoint pairs also need to be fliped
+    # on new image
+
+    org_height, org_width, channels = image.shape
+
+    # vertical flip image: flipCode=0
+    flip_image = cv2.flip(image, flipCode=0)
+
+    # vertical flip each joints
+    joints[:, 1] = org_height - joints[:, 1]
+
+    # vertical flip matched keypoints
+    if matchpoints and len(matchpoints) != 0:
+        for i, j in matchpoints:
+            temp = np.copy(joints[i, :])
+            joints[i, :] = joints[j, :]
+            joints[j, :] = temp
+
+    # vertical flip center
+    flip_center = center
+    flip_center[1] = org_height - center[1]
+
+    return flip_image, joints, flip_center
+
+
+def random_brightness(image, jitter=.5):
+    """
+    Random adjust brightness for image
+
+    # Arguments
+        image: origin image for brightness change
+            numpy array containing image data
+        jitter: jitter range for random brightness,
+            scalar to control the random brightness level.
+
+    # Returns
+        image: adjusted numpy array image.
+    """
+    img = Image.fromarray(image)
+    enh_bri = ImageEnhance.Brightness(img)
+    brightness = rand(jitter, 1/jitter)
+    new_img = enh_bri.enhance(brightness)
+    image = np.asarray(new_img)
+
+    return image
+
+
+def random_chroma(image, jitter=.5):
+    """
+    Random adjust chroma (color level) for image
+
+    # Arguments
+        image: origin image for chroma change
+            numpy array containing image data
+        jitter: jitter range for random chroma,
+            scalar to control the random color level.
+
+    # Returns
+        image: adjusted numpy array image.
+    """
+    img = Image.fromarray(image)
+    enh_col = ImageEnhance.Color(img)
+    color = rand(jitter, 1/jitter)
+    new_img = enh_col.enhance(color)
+    image = np.asarray(new_img)
+
+    return image
+
+
+def random_contrast(image, jitter=.5):
+    """
+    Random adjust contrast for image
+
+    # Arguments
+        image: origin image for contrast change
+            numpy array containing image data
+        jitter: jitter range for random contrast,
+            scalar to control the random contrast level.
+
+    # Returns
+        image: adjusted numpy array image.
+    """
+    img = Image.fromarray(image)
+    enh_con = ImageEnhance.Contrast(img)
+    contrast = rand(jitter, 1/jitter)
+    new_img = enh_con.enhance(contrast)
+    image = np.asarray(new_img)
+
+    return image
+
+
+def random_sharpness(image, jitter=.5):
+    """
+    Random adjust sharpness for image
+
+    # Arguments
+        image: origin image for sharpness change
+            numpy array containing image data
+        jitter: jitter range for random sharpness,
+            scalar to control the random sharpness level.
+
+    # Returns
+        image: adjusted numpy array image.
+    """
+    img = Image.fromarray(image)
+    enh_sha = ImageEnhance.Sharpness(img)
+    sharpness = rand(jitter, 1/jitter)
+    new_img = enh_sha.enhance(sharpness)
+    image = np.asarray(new_img)
+
+    return image
+
+
+def random_blur(image, prob=.2, size=5):
+    """
+    Random add gaussian blur to image
+
+    # Arguments
+        image: origin image for blur
+            numpy array containing image data
+        prob: probability for blur,
+            scalar to control the blur probability.
+        size: kernel size for gaussian blur,
+            scalar to control the filter size.
+
+    # Returns
+        image: adjusted numpy array image.
+    """
+    blur = rand() < prob
+    if blur:
+        image = cv2.GaussianBlur(image, (size, size), 0)
+
+    return image
+
+
+def random_histeq(image, size=8, prob=.2):
+    """
+    Random apply "Contrast Limited Adaptive Histogram Equalization"
+    to image
+
+    # Arguments
+        image: origin image for histeq
+            numpy array containing image data
+        size: grid size for CLAHE,
+            scalar to control the grid size.
+        prob: probability for histeq,
+            scalar to control the histeq probability.
+
+    # Returns
+        image: adjusted numpy array image.
+    """
+    histeq = rand() < prob
+    if histeq:
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(size, size))
+        img_yuv = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
+        img_yuv[:,:,0] = clahe.apply(img_yuv[:,:,0])
+        image = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR) # to BGR
+    return image
+
+
+def random_grayscale(image, prob=.1):
+    """
+    Random convert image to grayscale
+
+    # Arguments
+        image: origin image for grayscale convert
+            numpy array containing image data
+        prob: probability for grayscale convert,
+            scalar to control the convert probability.
+
+    # Returns
+        image: adjusted numpy array image.
+    """
+    convert = rand() < prob
+    if convert:
+        #convert to grayscale first, and then
+        #back to 3 channels fake BGR
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+
+    return image
+
+
+def random_rotate_angle(rotate_range, prob=0.5):
+    """
+    Random rotate angle for image and keypoints transform
+
+    # Arguments
+        rotate_range: jitter range for random rotate,
+            scalar to control the random rotate level.
+        prob: probability for rotate transform,
+            scalar to control the rotate probability.
+
+    # Returns
+        rotate_angle: a rotate angle value.
+    """
+    rotate = rand() < prob
+    if not rotate:
+        return 0
+
+    rotate_angle = np.random.randint(-1*rotate_range, rotate_range)
+    return rotate_angle
+
 
 
 def get_transform(center, scale, res, rot=0):
@@ -37,7 +331,9 @@ def get_transform(center, scale, res, rot=0):
 
 
 def transform(pt, center, scale, res, invert=0, rot=0):
-    # Transform pixel location to different reference
+    """
+    Transform pixel location to different reference
+    """
     t = get_transform(center, scale, res, rot=rot)
     if invert:
         t = np.linalg.inv(t)
@@ -46,7 +342,11 @@ def transform(pt, center, scale, res, invert=0, rot=0):
     return new_pt[:2].astype(int) + 1
 
 
-def crop_image(img, center, scale, res, rot=0):
+def crop_image(img, center, scale, res, rotate_angle=0):
+    """
+    Crop out single person area from image with center point and scale factor,
+    together with rotate and resize to model input size
+    """
     # preprocessing for efficient cropping
     height, width = img.shape[0:2]
     scale_factor = scale * 200.0 / res[0]
@@ -67,7 +367,7 @@ def crop_image(img, center, scale, res, rot=0):
 
     # Padding so that when rotated proper amount of context is included
     pad = int(np.linalg.norm(bottom_right - upper_left) / 2 - float(bottom_right[1] - upper_left[1]) / 2)
-    if not rot == 0:
+    if not rotate_angle == 0:
         upper_left -= pad
         bottom_right += pad
 
@@ -84,9 +384,9 @@ def crop_image(img, center, scale, res, rot=0):
     old_y = max(0, upper_left[1]), min(len(img), bottom_right[1])
     new_img[new_y[0]:new_y[1], new_x[0]:new_x[1]] = img[old_y[0]:old_y[1], old_x[0]:old_x[1]]
 
-    if not rot == 0:
+    if not rotate_angle == 0:
         # Remove padding
-        new_img = np.array(Image.fromarray(new_img).rotate(rot))
+        new_img = np.array(Image.fromarray(new_img).rotate(rotate_angle))
         new_img = new_img[pad:-pad, pad:-pad]
 
     if 0 in new_img.shape:
@@ -97,75 +397,34 @@ def crop_image(img, center, scale, res, rot=0):
     return new_img
 
 
-def horizontal_flip(image, joints, center, matchpoints=None):
-    joints = np.copy(joints)
-
-    # some keypoint pairs also need to be fliped
-    # on new image
-    #matchpoints = (
-        #[0, 5],  # ankle
-        #[1, 4],  # knee
-        #[2, 3],  # hip
-        #[10, 15],  # wrist
-        #[11, 14],  # elbow
-        #[12, 13]  # shoulder
-    #)
-
-    org_height, org_width, channels = image.shape
-
-    # horizontal flip image: flipCode=1
-    flipimage = cv2.flip(image, flipCode=1)
-
-    # horizontal flip each joints
-    joints[:, 0] = org_width - joints[:, 0]
-
-    # horizontal flip matched keypoints
-    if matchpoints and len(matchpoints) != 0:
-        for i, j in matchpoints:
-            temp = np.copy(joints[i, :])
-            joints[i, :] = joints[j, :]
-            joints[j, :] = temp
-
-    # horizontal flip center
-    flip_center = center
-    flip_center[0] = org_width - center[0]
-
-    return flipimage, joints, flip_center
+def transform_keypoints(joints, center, scale, res, rotate_angle):
+    """
+    Transform keypoints to single person image reference
+    """
+    newjoints = np.copy(joints)
+    for i in range(joints.shape[0]):
+        if joints[i, 0] > 0 and joints[i, 1] > 0:
+            _x = transform(newjoints[i, 0:2] + 1, center=center, scale=scale, res=res, invert=0, rot=rotate_angle)
+            newjoints[i, 0:2] = _x
+    return newjoints
 
 
-def vertical_flip(image, joints, center, matchpoints=None):
-    joints = np.copy(joints)
-
-    # some keypoint pairs also need to be fliped
-    # on new image
-
-    org_height, org_width, channels = image.shape
-
-    # vertical flip image: flipCode=0
-    flipimage = cv2.flip(image, flipCode=0)
-
-    # vertical flip each joints
-    joints[:, 1] = org_height - joints[:, 1]
-
-    # vertical flip matched keypoints
-    if matchpoints and len(matchpoints) != 0:
-        for i, j in matchpoints:
-            temp = np.copy(joints[i, :])
-            joints[i, :] = joints[j, :]
-            joints[j, :] = temp
-
-    # vertical flip center
-    flip_center = center
-    flip_center[1] = org_height - center[1]
-
-    return flipimage, joints, flip_center
+def invert_transform_keypoints(joints, center, scale, res, rot):
+    newjoints = np.copy(joints)
+    for i in range(joints.shape[0]):
+        if joints[i, 0] > 0 and joints[i, 1] > 0:
+            _x = transform(newjoints[i, 0:2] + 1, center=center, scale=scale, res=res, invert=1, rot=rot)
+            newjoints[i, 0:2] = _x
+    return newjoints
 
 
-def draw_labelmap(img, pt, sigma, type='Gaussian'):
-    # Draw a 2D gaussian
-    # Adopted from https://github.com/anewell/pose-hg-train/blob/master/src/pypose/draw.py
+def label_heatmap(img, pt, sigma, type='Gaussian'):
+    """
+    Create a 2D gaussian label heatmap
+    Adopted from https://github.com/anewell/pose-hg-train/blob/master/src/pypose/draw.py
 
-    # Check that any part of the gaussian is in-bounds
+    Check that any part of the gaussian is in-bounds
+    """
     upper_left = [int(pt[0] - 3 * sigma), int(pt[1] - 3 * sigma)]
     bottom_right = [int(pt[0] + 3 * sigma + 1), int(pt[1] + 3 * sigma + 1)]
     if (upper_left[0] >= img.shape[1] or upper_left[1] >= img.shape[0] or
@@ -191,37 +450,37 @@ def draw_labelmap(img, pt, sigma, type='Gaussian'):
     img_x = max(0, upper_left[0]), min(bottom_right[0], img.shape[1])
     img_y = max(0, upper_left[1]), min(bottom_right[1], img.shape[0])
 
+    # Apply heatmap to image
     img[img_y[0]:img_y[1], img_x[0]:img_x[1]] = g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
+
     return img
 
 
-def transform_keypoints(joints, center, scale, res, rot):
-    # Transform keypoints to single person image reference
-    newjoints = np.copy(joints)
-    for i in range(joints.shape[0]):
-        if joints[i, 0] > 0 and joints[i, 1] > 0:
-            _x = transform(newjoints[i, 0:2] + 1, center=center, scale=scale, res=res, invert=0, rot=rot)
-            newjoints[i, 0:2] = _x
-    return newjoints
+def generate_gt_heatmap(joints, heatmap_size, sigma=1):
+    """
+    generate ground truth keypoints heatmap
 
+    # Arguments
+        joints: keypoints array, shape=(num_keypoints, 3)
+            each keypoints with format (x, y, visibility)
+        heatmap_size: ground truth heatmap shape
+            numpy array containing segment label mask
+        sigma: variance of the 2D gaussian heatmap distribution
 
-def invert_transform_keypoints(joints, center, scale, res, rot):
-    newjoints = np.copy(joints)
-    for i in range(joints.shape[0]):
-        if joints[i, 0] > 0 and joints[i, 1] > 0:
-            _x = transform(newjoints[i, 0:2] + 1, center=center, scale=scale, res=res, invert=1, rot=rot)
-            newjoints[i, 0:2] = _x
-    return newjoints
+    # Returns
+        gt_heatmap: ground truth keypoints heatmap,
+                    shape=(heatmap_size[0], heatmap_size[1], num_keypoints)
+    """
+    num_keypoints = joints.shape[0]
+    gt_heatmap = np.zeros(shape=(heatmap_size[0], heatmap_size[1], num_keypoints), dtype=float)
 
-
-def generate_gtmap(joints, sigma, outres):
-    npart = joints.shape[0]
-    gtmap = np.zeros(shape=(outres[0], outres[1], npart), dtype=float)
-    for i in range(npart):
+    for i in range(num_keypoints):
         visibility = joints[i, 2]
         if visibility > 0:
-            gtmap[:, :, i] = draw_labelmap(gtmap[:, :, i], joints[i, :], sigma)
-    return gtmap
+            # only apply heatmap when visibility = 1.0
+            gt_heatmap[:, :, i] = label_heatmap(gt_heatmap[:, :, i], joints[i, :], sigma)
+
+    return gt_heatmap
 
 
 def normalize_image(imgdata, color_mean):

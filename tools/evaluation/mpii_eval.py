@@ -176,18 +176,18 @@ def main(args):
     assert output_size[0] == input_size[0]//HG_OUTPUT_STRIDE and output_size[1] == input_size[1]//HG_OUTPUT_STRIDE, 'output size should be 1/{} of input size.'.format(HG_OUTPUT_STRIDE)
 
     # prepare validation dataset
-    valdata = hourglass_dataset(args.dataset_path, class_names,
+    val_dataset = hourglass_dataset(args.dataset_path, class_names,
                           input_size=input_size, is_train=False)
 
-    print('validation data size', valdata.get_dataset_size())
+    print('validation data size', val_dataset.get_dataset_size())
 
     # form up the validation result matrix
-    val_keypoints = np.zeros(shape=(valdata.get_dataset_size(), num_classes, 2), dtype=np.float)
+    val_keypoints = np.zeros(shape=(val_dataset.get_dataset_size(), num_classes, 2), dtype=np.float)
 
     count = 0
     batch_size = 8
-    val_gen = valdata.generator(batch_size, num_hgstack=1, sigma=1, is_shuffle=False, with_meta=True)
-    pbar = tqdm(total=valdata.get_dataset_size(), desc='Eval model')
+    val_gen = val_dataset.generator(batch_size, num_hgstack=1, with_meta=True)
+    pbar = tqdm(total=val_dataset.get_dataset_size(), desc='Eval model')
     # fetch validation data from generator, which will crop out single person area, resize to inres and normalize image
     for _img, _gthmap, _meta in val_gen:
         # get predicted heatmap
@@ -205,7 +205,7 @@ def main(args):
     pbar.close()
 
     # store result matrix, and use it to get PCKh metrics
-    eval_pckh(args.model_path, val_keypoints, valdata.get_annotations(), class_names)
+    eval_pckh(args.model_path, val_keypoints, val_dataset.get_annotations(), class_names)
     return
 
 

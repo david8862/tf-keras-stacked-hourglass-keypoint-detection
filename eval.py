@@ -374,7 +374,7 @@ def eval_PCK(model, model_format, eval_dataset, class_names, score_threshold, no
     count = 0
     batch_size = 1
     pbar = tqdm(total=eval_dataset.get_dataset_size(), desc='Eval model')
-    for image_data, gt_heatmap, metainfo in eval_dataset.generator(batch_size, 8, sigma=1, is_shuffle=False, with_meta=True):
+    for image_data, gt_heatmap, metainfo in eval_dataset.generator(batch_size, num_hgstack=8, with_meta=True):
         # fetch validation data from generator, which will crop out single person area, resize to input_size and normalize image
         count += batch_size
         if count > eval_dataset.get_dataset_size():

@@ -63,8 +63,7 @@ def main(args):
     num_train = train_dataset.get_dataset_size()
     num_val = val_dataset.get_dataset_size()
 
-    train_gen = train_dataset.generator(args.batch_size, args.num_stacks, sigma=1, is_shuffle=True,
-                                        rot_flag=True, scale_flag=True, h_flip_flag=True, v_flip_flag=True)
+    train_gen = train_dataset.generator(args.batch_size, num_hgstack=args.num_stacks, with_meta=False)
 
     model_type = get_model_type(args.num_stacks, args.mobile, args.tiny, input_size)
 

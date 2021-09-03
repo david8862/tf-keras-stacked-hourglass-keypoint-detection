@@ -4,7 +4,7 @@ import os, random
 import numpy as np
 from PIL import Image
 import json
-from common.data_utils import crop_image, horizontal_flip, vertical_flip, normalize_image, transform_keypoints, generate_gtmap
+from common.data_utils import random_horizontal_flip, random_vertical_flip, random_brightness, random_grayscale, random_chroma, random_contrast, random_sharpness, random_blur, random_histeq, random_rotate_angle, crop_image, normalize_image, transform_keypoints, generate_gt_heatmap
 
 # by default, Stacked Hourglass model use output_stride = 4, which means:
 #
@@ -97,18 +97,15 @@ class hourglass_dataset(object):
     def get_annotations(self):
         return self.annotations
 
-    def generator(self, batch_size, num_hgstack, sigma=1, with_meta=False, is_shuffle=False,
-                  rot_flag=False, scale_flag=False, h_flip_flag=False, v_flip_flag=False):
+    def generator(self, batch_size, num_hgstack, with_meta=False):
         '''
         Input:  batch_size * input_size  * channel (3)
         Output: batch_size * output_size * num_classes
         '''
-        if not self.is_train:
-            assert (is_shuffle == False), 'shuffle must be off in val model'
-            assert (rot_flag == False), 'rot_flag must be off in val model'
 
         while True:
-            if is_shuffle:
+            if self.is_train:
+                # shuffle train data every epoch
                 random.shuffle(self.annotations)
 
             batch_images = np.zeros(shape=(batch_size, self.input_size[0], self.input_size[1], 3), dtype=np.float32)
@@ -118,7 +115,7 @@ class hourglass_dataset(object):
             count = 0
             for i, annotation in enumerate(self.annotations):
                 # generate input image and ground truth heatmap
-                image, gt_heatmap, meta = self.process_image(i, annotation, sigma, rot_flag, scale_flag, h_flip_flag, v_flip_flag)
+                image, gt_heatmap, meta = self.process_image(i, annotation)
 
                 # in case we got an empty image, bypass the sample
                 if image is None:
@@ -144,7 +141,7 @@ class hourglass_dataset(object):
                     else:
                         yield batch_images, out_heatmaps
 
-    def process_image(self, sample_index, annotation, sigma, rot_flag, scale_flag, h_flip_flag, v_flip_flag):
+    def process_image(self, sample_index, annotation):
         imagefile = os.path.join(self.imgpath, annotation['img_paths'])
         img = Image.open(imagefile)
         # make sure image is in RGB mode with 3 channels
@@ -164,26 +161,44 @@ class hourglass_dataset(object):
             center[1] = center[1] + 15 * scale
             scale = scale * 1.25
 
-        # random horizontal filp
-        if h_flip_flag and random.choice([0, 1]):
-            image, joints, center = horizontal_flip(image, joints, center, self.horizontal_matchpoints)
+        rotate_angle = 0
+        # real-time data augmentation for training process
+        if self.is_train:
+            # random horizontal filp
+            image, joints, center = random_horizontal_flip(image, joints, center, matchpoints=self.horizontal_matchpoints, prob=0.5)
 
-        # random vertical filp
-        if v_flip_flag and random.choice([0, 1]):
-            image, joints, center = vertical_flip(image, joints, center, self.vertical_matchpoints)
+            # random vertical filp
+            image, joints, center = random_vertical_flip(image, joints, center, matchpoints=self.vertical_matchpoints, prob=0.5)
 
-        # random adjust scale
-        if scale_flag:
+            # random adjust brightness
+            image = random_brightness(image)
+
+            # random adjust color level
+            image = random_chroma(image)
+
+            # random adjust contrast
+            image = random_contrast(image)
+
+            # random adjust sharpness
+            image = random_sharpness(image)
+
+            # random convert image to grayscale
+            image = random_grayscale(image)
+
+            # random do gaussian blur to image
+            image = random_blur(image)
+
+            # random do histogram equalization using CLAHE
+            image = random_histeq(image)
+
+            # random adjust scale
             scale = scale * np.random.uniform(0.8, 1.2)
 
-        # random rotate image
-        if rot_flag and random.choice([0, 1]):
-            rot = np.random.randint(-1 * 30, 30)
-        else:
-            rot = 0
+            # generate random rotate angle for image and keypoints transform
+            rotate_angle = random_rotate_angle(rotate_range=30, prob=0.5)
 
         # crop out single person area, resize to input size res and normalize image
-        image = crop_image(image, center, scale, self.input_size, rot)
+        image = crop_image(image, center, scale, self.input_size, rotate_angle)
 
         # in case we got an empty image, bypass the sample
         if image is None:
@@ -193,15 +208,15 @@ class hourglass_dataset(object):
         image = normalize_image(image, self.get_color_mean())
 
         # transform keypoints to cropped image reference
-        transformed_keypoints = transform_keypoints(joints, center, scale, self.output_size, rot)
-        # generate ground truth point heatmap
-        gtmap = generate_gtmap(transformed_keypoints, sigma, self.output_size)
+        transformed_keypoints = transform_keypoints(joints, center, scale, self.output_size, rotate_angle)
+        # generate ground truth keypoint heatmap
+        gt_heatmap = generate_gt_heatmap(transformed_keypoints, self.output_size)
 
         # meta info
         metainfo = {'sample_index': sample_index, 'center': center, 'scale': scale,
                     'pts': joints, 'tpts': transformed_keypoints, 'name': imagefile}
 
-        return image, gtmap, metainfo
+        return image, gt_heatmap, metainfo
 
     def get_keypoint_classes(self):
         return self.class_names

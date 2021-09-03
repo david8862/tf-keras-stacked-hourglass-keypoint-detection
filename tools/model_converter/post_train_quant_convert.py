@@ -32,7 +32,7 @@ def post_train_quant_convert(keras_model_file, dataset_path, class_names, sample
                           input_size=input_size, is_train=False)
 
     batch_size = 1
-    represent_data_gen = represent_data.generator(batch_size, num_hgstack=1, sigma=1, is_shuffle=False, with_meta=False)
+    represent_data_gen = represent_data.generator(batch_size, num_hgstack=1, with_meta=False)
 
     def data_generator():
         i = 0
