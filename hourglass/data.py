@@ -197,7 +197,7 @@ class hourglass_dataset(object):
             # generate random rotate angle for image and keypoints transform
             rotate_angle = random_rotate_angle(rotate_range=30, prob=0.5)
 
-        # crop out single person area, resize to input size res and normalize image
+        # crop out single person area, resize to input size and normalize image
         image = crop_image(image, center, scale, self.input_size, rotate_angle)
 
         # in case we got an empty image, bypass the sample

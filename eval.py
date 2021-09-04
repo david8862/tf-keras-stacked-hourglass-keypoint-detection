@@ -169,7 +169,7 @@ def revert_keypoints(keypoints, metainfo, heatmap_size):
     # invert transform keypoints based on center & scale
     center = metainfo['center']
     scale = metainfo['scale']
-    reverted_keypoints = invert_transform_keypoints(keypoints, center, scale, heatmap_size, rot=0)
+    reverted_keypoints = invert_transform_keypoints(keypoints, center, scale, heatmap_size, rotate_angle=0)
 
     return reverted_keypoints
 

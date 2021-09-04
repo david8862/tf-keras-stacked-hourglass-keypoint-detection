@@ -300,17 +300,17 @@ def random_rotate_angle(rotate_range, prob=0.5):
 
 
 
-def get_transform(center, scale, res, rot=0):
+def get_transform(center, scale, shape, rot=0):
     """
     General image processing functions
     """
     # Generate transformation matrix
     h = 200 * scale
     t = np.zeros((3, 3))
-    t[0, 0] = float(res[1]) / h
-    t[1, 1] = float(res[0]) / h
-    t[0, 2] = res[1] * (-float(center[0]) / h + .5)
-    t[1, 2] = res[0] * (-float(center[1]) / h + .5)
+    t[0, 0] = float(shape[1]) / h
+    t[1, 1] = float(shape[0]) / h
+    t[0, 2] = shape[1] * (-float(center[0]) / h + .5)
+    t[1, 2] = shape[0] * (-float(center[1]) / h + .5)
     t[2, 2] = 1
     if not rot == 0:
         rot = -rot  # To match direction of rotation from cropping
@@ -322,19 +322,19 @@ def get_transform(center, scale, res, rot=0):
         rot_mat[2, 2] = 1
         # Need to rotate around center
         t_mat = np.eye(3)
-        t_mat[0, 2] = -res[1] / 2
-        t_mat[1, 2] = -res[0] / 2
+        t_mat[0, 2] = -shape[1] / 2
+        t_mat[1, 2] = -shape[0] / 2
         t_inv = t_mat.copy()
         t_inv[:2, 2] *= -1
         t = np.dot(t_inv, np.dot(rot_mat, np.dot(t_mat, t)))
     return t
 
 
-def transform(pt, center, scale, res, invert=0, rot=0):
+def transform(pt, center, scale, shape, invert=0, rot=0):
     """
     Transform pixel location to different reference
     """
-    t = get_transform(center, scale, res, rot=rot)
+    t = get_transform(center, scale, shape, rot=rot)
     if invert:
         t = np.linalg.inv(t)
     new_pt = np.array([pt[0] - 1, pt[1] - 1, 1.]).T
@@ -342,14 +342,14 @@ def transform(pt, center, scale, res, invert=0, rot=0):
     return new_pt[:2].astype(int) + 1
 
 
-def crop_image(img, center, scale, res, rotate_angle=0):
+def crop_image(img, center, scale, shape, rotate_angle=0):
     """
     Crop out single person area from image with center point and scale factor,
     together with rotate and resize to model input size
     """
     # preprocessing for efficient cropping
     height, width = img.shape[0:2]
-    scale_factor = scale * 200.0 / res[0]
+    scale_factor = scale * 200.0 / shape[0]
     if scale_factor < 2:
         scale_factor = 1
     else:
@@ -361,9 +361,9 @@ def crop_image(img, center, scale, res, rotate_angle=0):
         scale = scale / scale_factor
 
     # upper left point
-    upper_left = np.array(transform([0, 0], center, scale, res, invert=1))
+    upper_left = np.array(transform([0, 0], center, scale, shape, invert=1))
     # bottom right point
-    bottom_right = np.array(transform(res, center, scale, res, invert=1))
+    bottom_right = np.array(transform(shape, center, scale, shape, invert=1))
 
     # Padding so that when rotated proper amount of context is included
     pad = int(np.linalg.norm(bottom_right - upper_left) / 2 - float(bottom_right[1] - upper_left[1]) / 2)
@@ -393,27 +393,30 @@ def crop_image(img, center, scale, res, rotate_angle=0):
         # in case we got a empty image
         return None
 
-    new_img = np.array(Image.fromarray(new_img).resize(res, Image.BICUBIC))
+    new_img = np.array(Image.fromarray(new_img).resize(tuple(reversed(shape)), Image.BICUBIC))
     return new_img
 
 
-def transform_keypoints(joints, center, scale, res, rotate_angle):
+def transform_keypoints(joints, center, scale, shape, rotate_angle):
     """
     Transform keypoints to single person image reference
     """
     newjoints = np.copy(joints)
     for i in range(joints.shape[0]):
         if joints[i, 0] > 0 and joints[i, 1] > 0:
-            _x = transform(newjoints[i, 0:2] + 1, center=center, scale=scale, res=res, invert=0, rot=rotate_angle)
+            _x = transform(newjoints[i, 0:2] + 1, center=center, scale=scale, shape=shape, invert=0, rot=rotate_angle)
             newjoints[i, 0:2] = _x
     return newjoints
 
 
-def invert_transform_keypoints(joints, center, scale, res, rot):
+def invert_transform_keypoints(joints, center, scale, shape, rotate_angle):
+    """
+    Inverted transform keypoints back to origin image reference
+    """
     newjoints = np.copy(joints)
     for i in range(joints.shape[0]):
         if joints[i, 0] > 0 and joints[i, 1] > 0:
-            _x = transform(newjoints[i, 0:2] + 1, center=center, scale=scale, res=res, invert=1, rot=rot)
+            _x = transform(newjoints[i, 0:2] + 1, center=center, scale=scale, shape=shape, invert=1, rot=rotate_angle)
             newjoints[i, 0:2] = _x
     return newjoints
 
@@ -523,7 +526,7 @@ def preprocess_image(image, model_input_size, mean=(0.4404, 0.4440, 0.4327)):
     # Returns
         image_data: numpy array of image data for model input.
     """
-    resized_image = image.resize(model_input_size, Image.BICUBIC)
+    resized_image = image.resize(tuple(reversed(model_input_size)), Image.BICUBIC)
     image_data = np.asarray(resized_image).astype('float32')
 
     mean = np.array(mean, dtype=np.float)
