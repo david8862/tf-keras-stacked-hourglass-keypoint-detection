@@ -4,20 +4,29 @@
 import numpy as np
 from PIL import Image, ImageEnhance
 import cv2
+import math
+
+# MPII "scale" parameter use 200 pixel as person height reference
+#
+# http://human-pose.mpi-inf.mpg.de/#download:
+#
+# .scale - person scale w.r.t. 200 px height
+#
+MPII_SCALE_REFERENCE = 200.0
 
 
 def rand(a=0, b=1):
     return np.random.rand()*(b-a) + a
 
 
-def random_horizontal_flip(image, joints, center, matchpoints=None, prob=.5):
+def random_horizontal_flip(image, keypoints, center, matchpoints=None, prob=.5):
     """
     Random horizontal flip for image and keypoints
 
     # Arguments
         image: origin image for horizontal flip
             numpy array containing image data
-        joints: keypoints numpy array, shape=(num_keypoints, 3)
+        keypoints: keypoints numpy array, shape=(num_keypoints, 3)
             each keypoints with format (x, y, visibility)
         center: center points array with format (x, y)
         matchpoints: list of tuple for keypoint pair index,
@@ -27,14 +36,14 @@ def random_horizontal_flip(image, joints, center, matchpoints=None, prob=.5):
 
     # Returns
         flip_image: fliped numpy array image.
-        joints: fliped keypoints numpy array
+        keypoints: fliped keypoints numpy array
         flip_center: fliped center points numpy array
     """
     flip = rand() < prob
     if not flip:
-        return image, joints, center
+        return image, keypoints, center
 
-    joints = np.copy(joints)
+    keypoints = np.copy(keypoints)
 
     # some keypoint pairs also need to be fliped
     # on new image
@@ -52,31 +61,31 @@ def random_horizontal_flip(image, joints, center, matchpoints=None, prob=.5):
     # horizontal flip image: flipCode=1
     flip_image = cv2.flip(image, flipCode=1)
 
-    # horizontal flip each joints
-    joints[:, 0] = org_width - joints[:, 0]
+    # horizontal flip each keypoints
+    keypoints[:, 0] = org_width - keypoints[:, 0]
 
     # horizontal swap matched keypoints
     if matchpoints and len(matchpoints) != 0:
         for i, j in matchpoints:
-            temp = np.copy(joints[i, :])
-            joints[i, :] = joints[j, :]
-            joints[j, :] = temp
+            temp = np.copy(keypoints[i, :])
+            keypoints[i, :] = keypoints[j, :]
+            keypoints[j, :] = temp
 
     # horizontal flip center
     flip_center = center
     flip_center[0] = org_width - center[0]
 
-    return flip_image, joints, flip_center
+    return flip_image, keypoints, flip_center
 
 
-def random_vertical_flip(image, joints, center, matchpoints=None, prob=.5):
+def random_vertical_flip(image, keypoints, center, matchpoints=None, prob=.5):
     """
     Random vertical flip for image and keypoints
 
     # Arguments
         image: origin image for vertical flip
             numpy array containing image data
-        joints: keypoints numpy array, shape=(num_keypoints, 3)
+        keypoints: keypoints numpy array, shape=(num_keypoints, 3)
             each keypoints with format (x, y, visibility)
         center: center points array with format (x, y)
         matchpoints: list of tuple for keypoint pair index,
@@ -86,14 +95,14 @@ def random_vertical_flip(image, joints, center, matchpoints=None, prob=.5):
 
     # Returns
         flip_image: fliped numpy array image.
-        joints: fliped keypoints numpy array
+        keypoints: fliped keypoints numpy array
         flip_center: fliped center points numpy array
     """
     flip = rand() < prob
     if not flip:
-        return image, joints, center
+        return image, keypoints, center
 
-    joints = np.copy(joints)
+    keypoints = np.copy(keypoints)
 
     # some keypoint pairs also need to be fliped
     # on new image
@@ -103,21 +112,21 @@ def random_vertical_flip(image, joints, center, matchpoints=None, prob=.5):
     # vertical flip image: flipCode=0
     flip_image = cv2.flip(image, flipCode=0)
 
-    # vertical flip each joints
-    joints[:, 1] = org_height - joints[:, 1]
+    # vertical flip each keypoints
+    keypoints[:, 1] = org_height - keypoints[:, 1]
 
     # vertical flip matched keypoints
     if matchpoints and len(matchpoints) != 0:
         for i, j in matchpoints:
-            temp = np.copy(joints[i, :])
-            joints[i, :] = joints[j, :]
-            joints[j, :] = temp
+            temp = np.copy(keypoints[i, :])
+            keypoints[i, :] = keypoints[j, :]
+            keypoints[j, :] = temp
 
     # vertical flip center
     flip_center = center
     flip_center[1] = org_height - center[1]
 
-    return flip_image, joints, flip_center
+    return flip_image, keypoints, flip_center
 
 
 def random_brightness(image, jitter=.5):
@@ -305,7 +314,7 @@ def get_transform(center, scale, shape, rot=0):
     General image processing functions
     """
     # Generate transformation matrix
-    h = 200 * scale
+    h = scale * MPII_SCALE_REFERENCE
     t = np.zeros((3, 3))
     t[0, 0] = float(shape[1]) / h
     t[1, 1] = float(shape[0]) / h
@@ -349,7 +358,7 @@ def crop_image(img, center, scale, shape, rotate_angle=0):
     """
     # preprocessing for efficient cropping
     height, width = img.shape[0:2]
-    scale_factor = scale * 200.0 / shape[0]
+    scale_factor = scale * MPII_SCALE_REFERENCE / shape[0]
     if scale_factor < 2:
         scale_factor = 1
     else:
@@ -397,28 +406,147 @@ def crop_image(img, center, scale, shape, rotate_angle=0):
     return new_img
 
 
-def transform_keypoints(joints, center, scale, shape, rotate_angle):
+def transform_keypoints(keypoints, center, scale, shape, rotate_angle):
     """
     Transform keypoints to single person image reference
     """
-    newjoints = np.copy(joints)
-    for i in range(joints.shape[0]):
-        if joints[i, 0] > 0 and joints[i, 1] > 0:
-            _x = transform(newjoints[i, 0:2] + 1, center=center, scale=scale, shape=shape, invert=0, rot=rotate_angle)
-            newjoints[i, 0:2] = _x
-    return newjoints
+    new_keypoints = np.copy(keypoints)
+    for i in range(keypoints.shape[0]):
+        if keypoints[i, 0] > 0 and keypoints[i, 1] > 0:
+            _x = transform(new_keypoints[i, 0:2] + 1, center=center, scale=scale, shape=shape, invert=0, rot=rotate_angle)
+            new_keypoints[i, 0:2] = _x
+    return new_keypoints
 
 
-def invert_transform_keypoints(joints, center, scale, shape, rotate_angle):
+def invert_transform_keypoints(keypoints, center, scale, shape, rotate_angle):
     """
     Inverted transform keypoints back to origin image reference
     """
-    newjoints = np.copy(joints)
-    for i in range(joints.shape[0]):
-        if joints[i, 0] > 0 and joints[i, 1] > 0:
-            _x = transform(newjoints[i, 0:2] + 1, center=center, scale=scale, shape=shape, invert=1, rot=rotate_angle)
-            newjoints[i, 0:2] = _x
-    return newjoints
+    new_keypoints = np.copy(keypoints)
+    for i in range(keypoints.shape[0]):
+        if keypoints[i, 0] > 0 and keypoints[i, 1] > 0:
+            _x = transform(new_keypoints[i, 0:2] + 1, center=center, scale=scale, shape=shape, invert=1, rot=rotate_angle)
+            new_keypoints[i, 0:2] = _x
+    return new_keypoints
+
+
+def revert_keypoints(keypoints, center, scale, image_shape, input_shape, output_stride=4):
+    """
+    Revert transform/predict keypoints back to origin image reference
+    """
+    height, width, channels = image_shape
+
+    person_height = scale * MPII_SCALE_REFERENCE
+    # get person width same aspect ratio as target shape
+    person_width = person_height * (float(input_shape[1]) / float(input_shape[0]))
+
+    # person bbox
+    person_xmin = int(max(0, center[0] - (person_width // 2)))
+    person_xmax = int(min(width, center[0] + (person_width // 2)))
+    person_ymin = int(max(0, center[1] - (person_height // 2)))
+    person_ymax = int(min(height, center[1] + (person_height // 2)))
+
+    # calculate actual resize ratio on width and height
+    crop_height = person_ymax - person_ymin
+    crop_width = person_xmax - person_xmin
+    resize_ratio_x = input_shape[1] / float(crop_width)
+    resize_ratio_y = input_shape[0] / float(crop_height)
+
+    # update keypoints to single person reference
+    new_keypoints = np.zeros_like(keypoints)
+
+    for i in range(keypoints.shape[0]):
+        # only pick valid keypoint
+        if keypoints[i, 0] > 0 and keypoints[i, 1] > 0:
+            # move and resize the keypoint
+            new_x = min(width, (keypoints[i, 0] * output_stride / resize_ratio_x) + person_xmin)
+            new_y = min(height, (keypoints[i, 1] * output_stride / resize_ratio_y) + person_ymin)
+
+            # only pick valid new keypoint
+            if new_x < width and new_y < height:
+                new_keypoints[i, 0:2] = np.asarray([new_x, new_y])
+                new_keypoints[i, 2] = keypoints[i, 2]
+    return new_keypoints
+
+
+
+def crop_single_person(image, keypoints, center, scale, input_shape):
+    """
+    crop out single person area from origin image with center point &
+    scale factor, and resize to model input size
+    """
+    height, width, channels = image.shape
+
+    person_height = scale * MPII_SCALE_REFERENCE
+    # get person width same aspect ratio as target shape
+    person_width = person_height * (float(input_shape[1]) / float(input_shape[0]))
+
+    # person bbox
+    person_xmin = int(max(0, center[0] - (person_width // 2)))
+    person_xmax = int(min(width, center[0] + (person_width // 2)))
+    person_ymin = int(max(0, center[1] - (person_height // 2)))
+    person_ymax = int(min(height, center[1] + (person_height // 2)))
+
+    # crop out person image area
+    person_image = np.copy(image[person_ymin:person_ymax, person_xmin:person_xmax])
+
+    # resize person image to target shape
+    person_image = cv2.resize(person_image, tuple(reversed(input_shape)), cv2.INTER_AREA)
+
+    # calculate actual resize ratio on width and height
+    crop_height = person_ymax - person_ymin
+    crop_width = person_xmax - person_xmin
+    resize_ratio_x = input_shape[1] / float(crop_width)
+    resize_ratio_y = input_shape[0] / float(crop_height)
+
+    # update keypoints to single person reference
+    new_keypoints = np.zeros_like(keypoints)
+
+    for i in range(keypoints.shape[0]):
+        # only pick valid keypoint
+        if keypoints[i, 0] > 0 and keypoints[i, 1] > 0:
+            # move and resize the keypoint
+            new_x = (keypoints[i, 0] - person_xmin) * resize_ratio_x
+            new_y = (keypoints[i, 1] - person_ymin) * resize_ratio_y
+
+            # only pick valid new keypoint
+            if new_x > 0 and new_y > 0:
+                new_keypoints[i, 0:2] = np.asarray([new_x, new_y])
+                new_keypoints[i, 2] = 1.0
+
+    return person_image, new_keypoints
+
+
+def rotate_single_person(image, keypoints, angle):
+    """
+    rotate single person image and keypoints coordinates
+    """
+    # image center point for rotation
+    center_x, center_y = image.shape[1]//2, image.shape[0]//2
+
+    # convert angle to randian
+    radian = math.radians(angle)
+
+    # rotate image
+    # getRotationMatrix2D() follow counterclockwise rotation, so here we
+    # use "-1*angle" to align with following keypoint rotation
+    M = cv2.getRotationMatrix2D((image.shape[1]//2, image.shape[0]//2), -1*angle, scale=1.0)
+    image = cv2.warpAffine(image, M, (image.shape[1], image.shape[0]), flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+
+    # rotate keypoints (clockwise rotation)
+    new_keypoints = np.zeros_like(keypoints)
+    for i in range(keypoints.shape[0]):
+        # only pick valid keypoint
+        if keypoints[i, 0] > 0 and keypoints[i, 1] > 0:
+            new_x = (keypoints[i, 0] - center_x) * math.cos(radian) - (keypoints[i, 1] - center_y) * math.sin(radian) + center_x
+            new_y = (keypoints[i, 0] - center_x) * math.sin(radian) + (keypoints[i, 1] - center_y) * math.cos(radian) + center_y
+
+            # only pick valid new keypoint
+            if (new_x > 0 and new_x < image.shape[1]) and (new_y > 0 and new_y < image.shape[0]):
+                new_keypoints[i, 0:2] = np.asarray([new_x, new_y])
+                new_keypoints[i, 2] = 1.0
+
+    return image, new_keypoints
 
 
 def label_heatmap(img, pt, sigma, type='Gaussian'):
@@ -430,8 +558,8 @@ def label_heatmap(img, pt, sigma, type='Gaussian'):
     """
     upper_left = [int(pt[0] - 3 * sigma), int(pt[1] - 3 * sigma)]
     bottom_right = [int(pt[0] + 3 * sigma + 1), int(pt[1] + 3 * sigma + 1)]
-    if (upper_left[0] >= img.shape[1] or upper_left[1] >= img.shape[0] or
-            bottom_right[0] < 0 or bottom_right[1] < 0):
+    if (upper_left[0] < 0 or upper_left[1] < 0 or
+            bottom_right[0] >= img.shape[1] or bottom_right[1] >= img.shape[0]):
         # If not, just return the image as is
         return img
 
@@ -447,11 +575,19 @@ def label_heatmap(img, pt, sigma, type='Gaussian'):
         g = sigma / (((x - x0) ** 2 + (y - y0) ** 2 + sigma ** 2) ** 1.5)
 
     # Usable gaussian range
-    g_x = max(0, -upper_left[0]), min(bottom_right[0], img.shape[1]) - upper_left[0]
-    g_y = max(0, -upper_left[1]), min(bottom_right[1], img.shape[0]) - upper_left[1]
+    g_x = [max(0, -upper_left[0]), min(bottom_right[0], img.shape[1]) - upper_left[0]]
+    g_y = [max(0, -upper_left[1]), min(bottom_right[1], img.shape[0]) - upper_left[1]]
     # Image range
-    img_x = max(0, upper_left[0]), min(bottom_right[0], img.shape[1])
-    img_y = max(0, upper_left[1]), min(bottom_right[1], img.shape[0])
+    img_x = [max(0, upper_left[0]), min(bottom_right[0], img.shape[1])]
+    img_y = [max(0, upper_left[1]), min(bottom_right[1], img.shape[0])]
+
+    # NOTE: an ugly trick to avoid heatmap size mismatch,
+    # which is usually caused by python/numpy calculate error
+    if img_x[1] - img_x[0] > g.shape[0]:
+        img_x[1] -= (img_x[1] - img_x[0]) - g.shape[0]
+
+    if img_y[1] - img_y[0] > g.shape[0]:
+        img_y[1] -= (img_y[1] - img_y[0]) - g.shape[0]
 
     # Apply heatmap to image
     img[img_y[0]:img_y[1], img_x[0]:img_x[1]] = g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
@@ -459,12 +595,12 @@ def label_heatmap(img, pt, sigma, type='Gaussian'):
     return img
 
 
-def generate_gt_heatmap(joints, heatmap_size, sigma=1):
+def generate_gt_heatmap(keypoints, heatmap_size, sigma=1):
     """
     generate ground truth keypoints heatmap
 
     # Arguments
-        joints: keypoints array, shape=(num_keypoints, 3)
+        keypoints: keypoints array, shape=(num_keypoints, 3)
             each keypoints with format (x, y, visibility)
         heatmap_size: ground truth heatmap shape
             numpy array containing segment label mask
@@ -474,14 +610,14 @@ def generate_gt_heatmap(joints, heatmap_size, sigma=1):
         gt_heatmap: ground truth keypoints heatmap,
                     shape=(heatmap_size[0], heatmap_size[1], num_keypoints)
     """
-    num_keypoints = joints.shape[0]
+    num_keypoints = keypoints.shape[0]
     gt_heatmap = np.zeros(shape=(heatmap_size[0], heatmap_size[1], num_keypoints), dtype=float)
 
     for i in range(num_keypoints):
-        visibility = joints[i, 2]
+        visibility = keypoints[i, 2]
         if visibility > 0:
             # only apply heatmap when visibility = 1.0
-            gt_heatmap[:, :, i] = label_heatmap(gt_heatmap[:, :, i], joints[i, :], sigma)
+            gt_heatmap[:, :, i] = label_heatmap(gt_heatmap[:, :, i], keypoints[i, :], sigma)
 
     return gt_heatmap
 

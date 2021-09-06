@@ -4,7 +4,7 @@ import os, random
 import numpy as np
 from PIL import Image
 import json
-from common.data_utils import random_horizontal_flip, random_vertical_flip, random_brightness, random_grayscale, random_chroma, random_contrast, random_sharpness, random_blur, random_histeq, random_rotate_angle, crop_image, normalize_image, transform_keypoints, generate_gt_heatmap
+from common.data_utils import random_horizontal_flip, random_vertical_flip, random_brightness, random_grayscale, random_chroma, random_contrast, random_sharpness, random_blur, random_histeq, random_rotate_angle, crop_single_person, rotate_single_person, crop_image, normalize_image, transform_keypoints, generate_gt_heatmap
 
 # by default, Stacked Hourglass model use output_stride = 4, which means:
 #
@@ -150,10 +150,14 @@ class hourglass_dataset(object):
         image = np.array(img)
         img.close()
 
-        # get center, joints and scale
-        # center, joints point format: (x, y)
+        # record origin image shape, will store
+        # in metainfo
+        image_shape = image.shape
+
+        # get center, keypoints and scale
+        # center, keypoints point format: (x, y)
         center = np.array(annotation['objpos'])
-        joints = np.array(annotation['joint_self'])
+        keypoints = np.array(annotation['joint_self'])
         scale = annotation['scale_provided']
 
         # adjust center/scale slightly to avoid cropping limbs
@@ -165,10 +169,10 @@ class hourglass_dataset(object):
         # real-time data augmentation for training process
         if self.is_train:
             # random horizontal filp
-            image, joints, center = random_horizontal_flip(image, joints, center, matchpoints=self.horizontal_matchpoints, prob=0.5)
+            image, keypoints, center = random_horizontal_flip(image, keypoints, center, matchpoints=self.horizontal_matchpoints, prob=0.5)
 
             # random vertical filp
-            image, joints, center = random_vertical_flip(image, joints, center, matchpoints=self.vertical_matchpoints, prob=0.5)
+            image, keypoints, center = random_vertical_flip(image, keypoints, center, matchpoints=self.vertical_matchpoints, prob=0.5)
 
             # random adjust brightness
             image = random_brightness(image)
@@ -200,6 +204,21 @@ class hourglass_dataset(object):
         # crop out single person area, resize to input size and normalize image
         image = crop_image(image, center, scale, self.input_size, rotate_angle)
 
+        # transform keypoints to cropped image reference
+        transformed_keypoints = transform_keypoints(keypoints, center, scale, self.output_size, rotate_angle)
+
+
+        # crop out single person area and transform keypoints coordinates to single person reference
+        #image, transformed_keypoints = crop_single_person(image, keypoints, center, scale, self.input_size)
+
+        #if rotate_angle != 0:
+            # rotate single person image and keypoints coordinates when augment
+            #image, transformed_keypoints = rotate_single_person(image, transformed_keypoints, rotate_angle)
+
+        # convert keypoints to model output reference
+        #transformed_keypoints[:, 0:2] = transformed_keypoints[:, 0:2] / HG_OUTPUT_STRIDE
+
+
         # in case we got an empty image, bypass the sample
         if image is None:
             return None, None, None
@@ -207,14 +226,12 @@ class hourglass_dataset(object):
         # normalize image
         image = normalize_image(image, self.get_color_mean())
 
-        # transform keypoints to cropped image reference
-        transformed_keypoints = transform_keypoints(joints, center, scale, self.output_size, rotate_angle)
         # generate ground truth keypoint heatmap
         gt_heatmap = generate_gt_heatmap(transformed_keypoints, self.output_size)
 
         # meta info
-        metainfo = {'sample_index': sample_index, 'center': center, 'scale': scale,
-                    'pts': joints, 'tpts': transformed_keypoints, 'name': imagefile}
+        metainfo = {'sample_index': sample_index, 'center': center, 'scale': scale, 'image_shape': image_shape,
+                    'pts': keypoints, 'tpts': transformed_keypoints, 'name': imagefile}
 
         return image, gt_heatmap, metainfo
 

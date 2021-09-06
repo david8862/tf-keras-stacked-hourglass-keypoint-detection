@@ -45,7 +45,7 @@ class EvalCallBack(Callback):
         val_dataset = hourglass_dataset(self.dataset_path, self.class_names,
                               input_size=self.input_size, is_train=False)
 
-        val_acc, _ = eval_PCK(self.model, 'H5', val_dataset, self.class_names, score_threshold=0.5, normalize=self.normalize, conf_threshold=1e-6, save_result=False)
+        val_acc, _ = eval_PCK(self.model, 'H5', val_dataset, self.class_names, self.input_size, score_threshold=0.5, normalize=self.normalize, conf_threshold=1e-6, save_result=False)
         print('validate accuray', val_acc, '@epoch', epoch)
 
         # record accuracy for every epoch to draw training curve

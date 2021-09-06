@@ -20,7 +20,7 @@ import onnxruntime
 
 from hourglass.data import hourglass_dataset
 from hourglass.postprocess import post_process_heatmap, post_process_heatmap_simple
-from common.data_utils import invert_transform_keypoints
+from common.data_utils import invert_transform_keypoints, revert_keypoints
 from common.model_utils import get_normalize
 from common.utils import touchdir, get_classes, get_skeleton, render_skeleton, optimize_tf_gpu
 
@@ -165,11 +165,14 @@ def draw_plot_func(dictionary, n_classes, window_title, plot_title, x_label, out
     plt.close()
 
 
-def revert_keypoints(keypoints, metainfo, heatmap_size):
+def revert_pred_keypoints(keypoints, metainfo, model_image_size, heatmap_size):
     # invert transform keypoints based on center & scale
     center = metainfo['center']
     scale = metainfo['scale']
+    image_shape = metainfo['image_shape']
+
     reverted_keypoints = invert_transform_keypoints(keypoints, center, scale, heatmap_size, rotate_angle=0)
+    #reverted_keypoints = revert_keypoints(keypoints, center, scale, image_shape, model_image_size)
 
     return reverted_keypoints
 
@@ -351,7 +354,7 @@ def get_result_dict(pred_keypoints, metainfo):
     return result_dict
 
 
-def eval_PCK(model, model_format, eval_dataset, class_names, score_threshold, normalize, conf_threshold, save_result=False, skeleton_lines=None):
+def eval_PCK(model, model_format, eval_dataset, class_names, model_image_size, score_threshold, normalize, conf_threshold, save_result=False, skeleton_lines=None):
     if model_format == 'MNN':
         #MNN inference engine need create session
         session = model.createSession()
@@ -418,7 +421,7 @@ def eval_PCK(model, model_format, eval_dataset, class_names, score_threshold, no
                 succeed_dict[class_name] = succeed_dict[class_name] + 1
 
         # revert predict keypoints back to origin image size
-        reverted_pred_keypoints = revert_keypoints(pred_keypoints, metainfo, heatmap_size)
+        reverted_pred_keypoints = revert_pred_keypoints(pred_keypoints, metainfo, model_image_size, heatmap_size)
 
         # get coco result dict with predict keypoints and image info
         result_dict = get_result_dict(reverted_pred_keypoints, metainfo)
@@ -573,7 +576,7 @@ def main():
     eval_dataset = hourglass_dataset(args.dataset_path, class_names,
                               input_size=model_image_size, is_train=False)
 
-    total_accuracy, accuracy_dict = eval_PCK(model, model_format, eval_dataset, class_names, args.score_threshold, normalize, args.conf_threshold, args.save_result, skeleton_lines)
+    total_accuracy, accuracy_dict = eval_PCK(model, model_format, eval_dataset, class_names, model_image_size, args.score_threshold, normalize, args.conf_threshold, args.save_result, skeleton_lines)
 
     print('\nPCK evaluation')
     for (class_name, accuracy) in accuracy_dict.items():

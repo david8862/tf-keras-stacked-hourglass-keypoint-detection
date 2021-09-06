@@ -132,9 +132,16 @@ def get_normalize(input_size):
 
     NOTE: 6.4 is standard normalize coefficient under
           input size (256,256)
-    """
-    assert input_size[0] == input_size[1], 'only support square input size.'
 
-    scale = float(input_size[0]) / 256.0
+    # Arguments
+        input_size: input image size as (height, width)
+
+    # Returns
+        scale: normalize coefficient
+    """
+    #assert input_size[0] == input_size[1], 'only support square input size.'
+
+    # use averaged scale factor for non square input size
+    scale = float((input_size[0] + input_size[1]) / 2) / 256.0
 
     return 6.4*scale
