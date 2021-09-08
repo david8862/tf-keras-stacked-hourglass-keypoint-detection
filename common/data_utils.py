@@ -308,7 +308,12 @@ def random_rotate_angle(rotate_range, prob=0.5):
     return rotate_angle
 
 
+#######################################################################################################
+# 2 solutions of image & keypoints transform
 
+
+###############################
+# Option 1 (from origin repo):
 def get_transform(center, scale, shape, rot=0):
     """
     General image processing functions
@@ -429,10 +434,17 @@ def invert_transform_keypoints(keypoints, center, scale, shape, rotate_angle):
             new_keypoints[i, 0:2] = _x
     return new_keypoints
 
+# End of Option 1
+###############################
 
+
+###############################
+# Option 2:
 def revert_keypoints(keypoints, center, scale, image_shape, input_shape, output_stride=4):
     """
-    Revert transform/predict keypoints back to origin image reference
+    Revert transform/predict keypoints back to origin image reference,
+    used for val/eval dataset, so we didn't support any augment like flip
+    or rotate
     """
     height, width, channels = image_shape
 
@@ -547,6 +559,9 @@ def rotate_single_person(image, keypoints, angle):
                 new_keypoints[i, 2] = 1.0
 
     return image, new_keypoints
+
+# End of Option 2
+###############################
 
 
 def label_heatmap(img, pt, sigma, type='Gaussian'):

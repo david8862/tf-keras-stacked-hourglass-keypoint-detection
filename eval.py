@@ -171,7 +171,13 @@ def revert_pred_keypoints(keypoints, metainfo, model_image_size, heatmap_size):
     scale = metainfo['scale']
     image_shape = metainfo['image_shape']
 
+    #######################################################################################################
+    # 2 ways of keypoints invert transform, according to data preprocess solutions in hourglass/data.py
+
+    # Option 1 (from origin repo):
     reverted_keypoints = invert_transform_keypoints(keypoints, center, scale, heatmap_size, rotate_angle=0)
+
+    # Option 2:
     #reverted_keypoints = revert_keypoints(keypoints, center, scale, image_shape, model_image_size)
 
     return reverted_keypoints

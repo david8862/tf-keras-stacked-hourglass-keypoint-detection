@@ -201,13 +201,26 @@ class hourglass_dataset(object):
             # generate random rotate angle for image and keypoints transform
             rotate_angle = random_rotate_angle(rotate_range=30, prob=0.5)
 
+
+        #######################################################################################################
+        # 2 solutions of input data preprocess, including:
+        #     1. crop single person area from origin image
+        #     2. apply rotate augment
+        #     3. resize to model input size
+        #     4. transform gt keypoints to cropped image reference
+
+        ###############################
+        # Option 1 (from origin repo):
         # crop out single person area, resize to input size and normalize image
         image = crop_image(image, center, scale, self.input_size, rotate_angle)
 
         # transform keypoints to cropped image reference
         transformed_keypoints = transform_keypoints(keypoints, center, scale, self.output_size, rotate_angle)
+        ###############################
 
 
+        ###############################
+        # Option 2:
         # crop out single person area and transform keypoints coordinates to single person reference
         #image, transformed_keypoints = crop_single_person(image, keypoints, center, scale, self.input_size)
 
@@ -217,7 +230,9 @@ class hourglass_dataset(object):
 
         # convert keypoints to model output reference
         #transformed_keypoints[:, 0:2] = transformed_keypoints[:, 0:2] / HG_OUTPUT_STRIDE
+        ###############################
 
+        #######################################################################################################
 
         # in case we got an empty image, bypass the sample
         if image is None:
