@@ -54,7 +54,7 @@ def validate_hourglass_model(model_path, image_file, class_names, skeleton_lines
     image = np.array(img, dtype='uint8')
     image_data = preprocess_image(img, model_image_size)
     image_size = img.size
-    scale = (image_size[0] * 1.0 / model_image_size[0], image_size[1] * 1.0 / model_image_size[1])
+    scale = (image_size[0] * 1.0 / model_image_size[1], image_size[1] * 1.0 / model_image_size[0])
 
     # predict once first to bypass the model building time
     model.predict(image_data)
@@ -96,7 +96,7 @@ def validate_hourglass_model_tflite(model_path, image_file, class_names, skeleto
 
     image_data = preprocess_image(img, model_image_size)
     image_size = img.size
-    scale = (image_size[0] * 1.0 / model_image_size[0], image_size[1] * 1.0 / model_image_size[1])
+    scale = (image_size[0] * 1.0 / model_image_size[1], image_size[1] * 1.0 / model_image_size[0])
 
     # predict once first to bypass the model building time
     interpreter.set_tensor(input_details[0]['index'], image_data)
@@ -142,7 +142,7 @@ def validate_hourglass_model_mnn(model_path, image_file, class_names, skeleton_l
     image = np.array(img, dtype='uint8')
     image_data = preprocess_image(img, model_image_size)
     image_size = img.size
-    scale = (image_size[0] * 1.0 / model_image_size[0], image_size[1] * 1.0 / model_image_size[1])
+    scale = (image_size[0] * 1.0 / model_image_size[1], image_size[1] * 1.0 / model_image_size[0])
 
     # use a temp tensor to copy data
     tmp_input = MNN.Tensor(input_shape, input_tensor.getDataType(),\
@@ -209,7 +209,7 @@ def validate_hourglass_model_onnx(model_path, image_file, class_names, skeleton_
     img = Image.open(image_file)
     image_data = preprocess_image(img, model_image_size)
     image_size = img.size
-    scale = (image_size[0] * 1.0 / model_image_size[0], image_size[1] * 1.0 / model_image_size[1])
+    scale = (image_size[0] * 1.0 / model_image_size[1], image_size[1] * 1.0 / model_image_size[0])
 
     feed = {input_tensors[0].name: image_data}
 
@@ -244,7 +244,7 @@ def validate_hourglass_model_pb(model_path, image_file, class_names, skeleton_li
     image_data = preprocess_image(img, model_image_size)
     #image_shape = img.size
     image_size = img.size
-    scale = (image_size[0] * 1.0 / model_image_size[0], image_size[1] * 1.0 / model_image_size[1])
+    scale = (image_size[0] * 1.0 / model_image_size[1], image_size[1] * 1.0 / model_image_size[0])
 
     #load frozen pb graph
     def load_pb_graph(model_path):

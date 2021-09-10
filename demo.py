@@ -74,8 +74,10 @@ class Hourglass(object):
     def detect_image(self, image):
         image_data = preprocess_image(image, self.model_image_size)
 
+        # NOTE: image_size and scale in (w,h) format, but
+        #       self.model_image_size in (h,w) format
         image_size = image.size
-        scale = (image_size[0] * 1.0 / self.model_image_size[0], image_size[1] * 1.0 / self.model_image_size[1])
+        scale = (image_size[0] * 1.0 / self.model_image_size[1], image_size[1] * 1.0 / self.model_image_size[0])
 
         start = time.time()
         keypoints = self.predict(image_data)
@@ -193,7 +195,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         '--model_image_size', type=str,
-        help='model image input size as <num>x<num>, default ' +
+        help='model image input size as <height>x<width>, default ' +
         str(Hourglass.get_defaults("model_image_size")[0])+'x'+str(Hourglass.get_defaults("model_image_size")[1]),
         default=str(Hourglass.get_defaults("model_image_size")[0])+'x'+str(Hourglass.get_defaults("model_image_size")[1])
     )

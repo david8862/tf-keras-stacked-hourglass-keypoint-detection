@@ -30,11 +30,6 @@ def optimize_tf_gpu(tf, K):
         K.set_session(session)
 
 
-def touchdir(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-
 def get_classes(classes_path):
     '''loads the classes'''
     with open(classes_path) as f:

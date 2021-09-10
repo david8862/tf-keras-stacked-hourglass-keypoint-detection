@@ -22,7 +22,7 @@ from hourglass.data import hourglass_dataset
 from hourglass.postprocess import post_process_heatmap, post_process_heatmap_simple
 from common.data_utils import invert_transform_keypoints, revert_keypoints
 from common.model_utils import get_normalize
-from common.utils import touchdir, get_classes, get_skeleton, render_skeleton, optimize_tf_gpu
+from common.utils import get_classes, get_skeleton, render_skeleton, optimize_tf_gpu
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -185,7 +185,7 @@ def revert_pred_keypoints(keypoints, metainfo, model_image_size, heatmap_size):
 
 def save_keypoints_detection(pred_keypoints, metainfo, class_names, skeleton_lines):
     result_dir=os.path.join('result','detection')
-    touchdir(result_dir)
+    os.makedirs(result_dir, exist_ok=True)
 
     image_name = metainfo['name']
     image = Image.open(image_name)
@@ -441,7 +441,7 @@ def eval_PCK(model, model_format, eval_dataset, class_names, model_image_size, s
     pbar.close()
 
     # save to coco result json
-    touchdir('result')
+    os.makedirs('result', exist_ok=True)
     json_fp = open(os.path.join('result','keypoints_result.json'), 'w')
     json_str = json.dumps(output_list)
     json_fp.write(json_str)
