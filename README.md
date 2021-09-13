@@ -15,6 +15,7 @@ An end-to-end single-object keypoint estimation pipeline with Stacked-Hourglass 
 #### Loss
 - [x] Mean Squared Error loss
 - [x] Mean Absolute Error loss
+- [x] Weighted Mean Squared Error loss
 - [x] Smooth L1 loss
 - [x] Huber loss
 

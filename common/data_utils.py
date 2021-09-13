@@ -575,7 +575,7 @@ def label_heatmap(img, pt, sigma, type='Gaussian'):
     bottom_right = [int(pt[0] + 3 * sigma + 1), int(pt[1] + 3 * sigma + 1)]
     if (upper_left[0] < 0 or upper_left[1] < 0 or
             bottom_right[0] >= img.shape[1] or bottom_right[1] >= img.shape[0]):
-        # If not, just return the image as is
+        # If heatmap extend to image area, just return the image as is
         return img
 
     # Generate gaussian

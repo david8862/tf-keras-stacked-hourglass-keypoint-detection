@@ -151,8 +151,8 @@ if __name__ == "__main__":
         help='batch size for training, default=%(default)s')
     parser.add_argument('--optimizer', type=str, required=False, default='rmsprop',
         help = "optimizer for training (adam/rmsprop/sgd), default=%(default)s")
-    parser.add_argument('--loss_type', type=str, required=False, default='mse', choices=['mse', 'mae', 'smooth_l1', 'huber'],
-        help = "loss type for training (mse/mae/smooth_l1/huber), default=%(default)s")
+    parser.add_argument('--loss_type', type=str, required=False, default='mse', choices=['mse', 'mae', 'weighted_mse', 'smooth_l1', 'huber'],
+        help = "loss type for training (mse/mae/weighted_mse/smooth_l1/huber), default=%(default)s")
     parser.add_argument('--learning_rate', type=float, required=False, default=5e-4,
         help = "Initial learning rate, default=%(default)s")
     parser.add_argument('--decay_type', type=str, required=False, default=None, choices=[None, 'cosine', 'exponential', 'polynomial', 'piecewise_constant'],
