@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import json, argparse
-from os import getcwd
 import numpy as np
 from tqdm import tqdm
 
@@ -119,7 +118,7 @@ def parse_coco_annotation(annotation_path, annotation_type):
     keypoint_num = len(keypoint_classes)
 
     annotation_list = []
-    pbar = tqdm(total=len(coco_annotations), desc='COCO annotation')
+    pbar = tqdm(total=len(coco_annotations), desc='COCO {} annotation'.format(annotation_type))
     for coco_annotation in coco_annotations:
         # coco_annotation format:
         # {
@@ -159,12 +158,13 @@ def parse_coco_annotation(annotation_path, annotation_type):
 
         #form up annotation dict item
         annotation_record = {}
-        annotation_record['dataset'] = 'coco'
+        annotation_record['dataset'] = 'COCO'
         annotation_record['img_paths'] = image_name
         annotation_record['isValidation'] = is_validation
         annotation_record['joint_self'] = keypoints
         annotation_record['objpos'] = objpos
         annotation_record['scale_provided'] = scale
+        annotation_record['headboxes'] = list([[0.0, 0.0], [0.0, 0.0]])
 
         annotation_list.append(annotation_record)
 
@@ -222,7 +222,7 @@ def parse_coco_keypoint_info(annotation_path, class_path, skeleton_path):
 
 
 
-def main(args):
+def coco_annotation(args):
     # parse coco train/val annotations and save to our json annotation
     train_annotation_list = parse_coco_annotation(args.train_anno_path, 'train')
     val_annotation_list = parse_coco_annotation(args.val_anno_path, 'val')
@@ -237,7 +237,7 @@ def main(args):
     return
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description='Parse MSCOCO keypoint annotation to our annotation files')
     parser.add_argument('--train_anno_path', type=str, required=True, help='MSCOCO keypoint train annotation file path')
     parser.add_argument('--val_anno_path', type=str, required=True, help='MSCOCO keypoint val annotation file path')
@@ -246,5 +246,7 @@ if __name__ == "__main__":
     parser.add_argument('--output_skeleton_path', type=str, required=False,  help='generated keypoint skeleton txt file path, default=%(default)s', default='./coco_skeleton.txt')
     args = parser.parse_args()
 
-    main(args)
+    coco_annotation(args)
 
+if __name__ == '__main__':
+    main()

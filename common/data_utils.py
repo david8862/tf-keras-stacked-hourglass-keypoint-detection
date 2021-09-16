@@ -358,7 +358,7 @@ def transform(pt, center, scale, shape, invert=0, rot=0):
 
 def crop_image(img, center, scale, shape, rotate_angle=0):
     """
-    Crop out single person area from image with center point and scale factor,
+    Crop out single object area from image with center point and scale factor,
     together with rotate and resize to model input size
     """
     # preprocessing for efficient cropping
@@ -413,7 +413,7 @@ def crop_image(img, center, scale, shape, rotate_angle=0):
 
 def transform_keypoints(keypoints, center, scale, shape, rotate_angle):
     """
-    Transform keypoints to single person image reference
+    Transform keypoints to single object image reference
     """
     new_keypoints = np.copy(keypoints)
     for i in range(keypoints.shape[0]):
@@ -448,31 +448,31 @@ def revert_keypoints(keypoints, center, scale, image_shape, input_shape, output_
     """
     height, width, channels = image_shape
 
-    person_height = scale * MPII_SCALE_REFERENCE
-    # get person width same aspect ratio as target shape
-    person_width = person_height * (float(input_shape[1]) / float(input_shape[0]))
+    obj_height = scale * MPII_SCALE_REFERENCE
+    # get object width same aspect ratio as target shape
+    obj_width = obj_height * (float(input_shape[1]) / float(input_shape[0]))
 
-    # person bbox
-    person_xmin = int(max(0, center[0] - (person_width // 2)))
-    person_xmax = int(min(width, center[0] + (person_width // 2)))
-    person_ymin = int(max(0, center[1] - (person_height // 2)))
-    person_ymax = int(min(height, center[1] + (person_height // 2)))
+    # obj bbox
+    obj_xmin = int(max(0, center[0] - (obj_width // 2)))
+    obj_xmax = int(min(width, center[0] + (obj_width // 2)))
+    obj_ymin = int(max(0, center[1] - (obj_height // 2)))
+    obj_ymax = int(min(height, center[1] + (obj_height // 2)))
 
     # calculate actual resize ratio on width and height
-    crop_height = person_ymax - person_ymin
-    crop_width = person_xmax - person_xmin
+    crop_height = obj_ymax - obj_ymin
+    crop_width = obj_xmax - obj_xmin
     resize_ratio_x = input_shape[1] / float(crop_width)
     resize_ratio_y = input_shape[0] / float(crop_height)
 
-    # update keypoints to single person reference
+    # update keypoints to single object reference
     new_keypoints = np.zeros_like(keypoints)
 
     for i in range(keypoints.shape[0]):
         # only pick valid keypoint
         if keypoints[i, 0] > 0 and keypoints[i, 1] > 0:
             # move and resize the keypoint
-            new_x = min(width, (keypoints[i, 0] * output_stride / resize_ratio_x) + person_xmin)
-            new_y = min(height, (keypoints[i, 1] * output_stride / resize_ratio_y) + person_ymin)
+            new_x = min(width, (keypoints[i, 0] * output_stride / resize_ratio_x) + obj_xmin)
+            new_y = min(height, (keypoints[i, 1] * output_stride / resize_ratio_y) + obj_ymin)
 
             # only pick valid new keypoint
             if new_x < width and new_y < height:
@@ -482,56 +482,56 @@ def revert_keypoints(keypoints, center, scale, image_shape, input_shape, output_
 
 
 
-def crop_single_person(image, keypoints, center, scale, input_shape):
+def crop_single_object(image, keypoints, center, scale, input_shape):
     """
-    crop out single person area from origin image with center point &
+    crop out single object area from origin image with center point &
     scale factor, and resize to model input size
     """
     height, width, channels = image.shape
 
-    person_height = scale * MPII_SCALE_REFERENCE
-    # get person width same aspect ratio as target shape
-    person_width = person_height * (float(input_shape[1]) / float(input_shape[0]))
+    obj_height = scale * MPII_SCALE_REFERENCE
+    # get object width same aspect ratio as target shape
+    obj_width = obj_height * (float(input_shape[1]) / float(input_shape[0]))
 
-    # person bbox
-    person_xmin = int(max(0, center[0] - (person_width // 2)))
-    person_xmax = int(min(width, center[0] + (person_width // 2)))
-    person_ymin = int(max(0, center[1] - (person_height // 2)))
-    person_ymax = int(min(height, center[1] + (person_height // 2)))
+    # object bbox
+    obj_xmin = int(max(0, center[0] - (obj_width // 2)))
+    obj_xmax = int(min(width, center[0] + (obj_width // 2)))
+    obj_ymin = int(max(0, center[1] - (obj_height // 2)))
+    obj_ymax = int(min(height, center[1] + (obj_height // 2)))
 
-    # crop out person image area
-    person_image = np.copy(image[person_ymin:person_ymax, person_xmin:person_xmax])
+    # crop out object image area
+    obj_image = np.copy(image[obj_ymin:obj_ymax, obj_xmin:obj_xmax])
 
-    # resize person image to target shape
-    person_image = cv2.resize(person_image, tuple(reversed(input_shape)), cv2.INTER_AREA)
+    # resize object image to target shape
+    obj_image = cv2.resize(obj_image, tuple(reversed(input_shape)), cv2.INTER_AREA)
 
     # calculate actual resize ratio on width and height
-    crop_height = person_ymax - person_ymin
-    crop_width = person_xmax - person_xmin
+    crop_height = obj_ymax - obj_ymin
+    crop_width = obj_xmax - obj_xmin
     resize_ratio_x = input_shape[1] / float(crop_width)
     resize_ratio_y = input_shape[0] / float(crop_height)
 
-    # update keypoints to single person reference
+    # update keypoints to single object reference
     new_keypoints = np.zeros_like(keypoints)
 
     for i in range(keypoints.shape[0]):
         # only pick valid keypoint
         if keypoints[i, 0] > 0 and keypoints[i, 1] > 0:
             # move and resize the keypoint
-            new_x = (keypoints[i, 0] - person_xmin) * resize_ratio_x
-            new_y = (keypoints[i, 1] - person_ymin) * resize_ratio_y
+            new_x = (keypoints[i, 0] - obj_xmin) * resize_ratio_x
+            new_y = (keypoints[i, 1] - obj_ymin) * resize_ratio_y
 
             # only pick valid new keypoint
             if new_x > 0 and new_y > 0:
                 new_keypoints[i, 0:2] = np.asarray([new_x, new_y])
                 new_keypoints[i, 2] = 1.0
 
-    return person_image, new_keypoints
+    return obj_image, new_keypoints
 
 
-def rotate_single_person(image, keypoints, angle):
+def rotate_single_object(image, keypoints, angle):
     """
-    rotate single person image and keypoints coordinates
+    rotate single object image and keypoints coordinates
     """
     # image center point for rotation
     center_x, center_y = image.shape[1]//2, image.shape[0]//2

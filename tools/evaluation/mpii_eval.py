@@ -4,107 +4,132 @@ import os, sys, argparse
 import cv2, scipy, copy
 import numpy as np
 from tqdm import tqdm
+
 from tensorflow.keras.models import load_model
+import tensorflow.keras.backend as K
+import tensorflow as tf
+import MNN
+import onnxruntime
 
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
-from hourglass.data import hourglass_dataset, HG_OUTPUT_STRIDE
+from hourglass.data import hourglass_dataset
 from hourglass.postprocess import post_process_heatmap, post_process_heatmap_simple
-from common.data_utils import transform
+from common.data_utils import invert_transform_keypoints, revert_keypoints
 from common.utils import get_classes
+
+from eval import hourglass_predict_keras, hourglass_predict_tflite, hourglass_predict_pb, hourglass_predict_onnx, hourglass_predict_mnn, revert_pred_keypoints, load_eval_model, draw_plot_func
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
-def get_predicted_kp_from_htmap(heatmap, meta, outres):
-    # nms to get location
-    kplst = post_process_heatmap_simple(heatmap)
-    kps = np.array(kplst)
+def fill_eval_array(eval_keypoints_array, pred_keypoints, metainfo, model_image_size, output_shape):
+    # get sample index from meta info
+    sample_index = metainfo['sample_index']
 
-    # use meta information to transform back to original image
-    mkps = copy.copy(kps)
-    for i in range(kps.shape[0]):
-        mkps[i, 0:2] = transform(kps[i], meta['center'], meta['scale'], res=outres, invert=1, rot=0)
+    # revert predict keypoints back to origin image size
+    reverted_pred_keypoints = revert_pred_keypoints(pred_keypoints, metainfo, model_image_size, output_shape)
 
-    return mkps
+    # fill result array at sample_index
+    eval_keypoints_array[sample_index, :, :] = reverted_pred_keypoints[:, 0:2]  # ignore the visibility
 
 
-def get_final_pred_kps(val_keypoints, preheatmap, metainfo, output_size):
-    for i in range(preheatmap.shape[0]):
-        prehmap = preheatmap[i, :, :, :]
-        meta = metainfo[i]
-        sample_index = meta['sample_index']
-        kps = get_predicted_kp_from_htmap(prehmap, meta, output_size)
-        val_keypoints[sample_index, :, :] = kps[:, 0:2]  # ignore the visibility
-
-
-def get_visible_array(val_annotations):
+def get_visible_array(eval_annotations):
+    """
+    parse visible array from eval annotation list
+    """
     visible_list = []
-    for val_record in val_annotations:
+    for eval_record in eval_annotations:
         visible_record = []
 
-        key_points = val_record['joint_self']
-        for key_point in key_points:
-            if key_point == [0., 0., 0.]:
+        keypoints = eval_record['joint_self']
+        for keypoint in keypoints:
+            if keypoint == [0., 0., 0.]:
                 visible_record.append(0)
             else:
                 visible_record.append(1)
 
         visible_list.append(visible_record)
-
     visible_array = np.array(visible_list, dtype='uint8')
+    # transpose array for computing PCKh
     visible_array = np.transpose(visible_array, [1, 0])
-    print('visible_array shape: ', visible_array.shape)
+
+    #print('visible_array shape: ', visible_array.shape)
     return visible_array
 
 
-def get_pos_gt(val_annotations):
-    key_point_list = []
+def get_gt_keypoints_array(eval_annotations):
+    """
+    parse gt keypoints array from eval annotation list
+    """
+    keypoints_list = []
+    for eval_record in eval_annotations:
+        keypoints_record = []
 
-    for val_record in val_annotations:
-        key_point_record = []
-
-        key_points = val_record['joint_self']
-        for key_point in key_points:
+        keypoints = eval_record['joint_self']
+        for keypoint in keypoints:
             #only pick (x,y) and drop is_visible
-            key_point_record.append(key_point[:2])
+            keypoints_record.append(keypoint[:2])
 
-        key_point_list.append(key_point_record)
+        keypoints_list.append(keypoints_record)
+    keypoints_array = np.array(keypoints_list, dtype='float64')
+    # transpose array for computing PCKh
+    keypoints_array = np.transpose(keypoints_array, [1, 2, 0])
 
-    key_point_array = np.array(key_point_list, dtype='float64')
-    key_point_array = np.transpose(key_point_array, [1, 2, 0])
-    print('key_point_array shape: ', key_point_array.shape)
-    return key_point_array
+    #print('keypoints_array shape: ', keypoints_array.shape)
+    return keypoints_array
 
 
-def get_headboxes(val_annotations):
+def get_headboxes_array(eval_annotations):
+    """
+    parse headboxes array from eval annotation list
+    """
     headboxes_list = []
-
-    for val_record in val_annotations:
-        headboxes_record = val_record['headboxes']
+    for eval_record in eval_annotations:
+        headboxes_record = eval_record['headboxes']
         headboxes_list.append(headboxes_record)
 
     headboxes_array = np.array(headboxes_list, dtype='float64')
+    # transpose array for computing PCKh
     headboxes_array = np.transpose(headboxes_array, [1, 2, 0])
-    print('headboxes_array shape: ', headboxes_array.shape)
+
+    #print('headboxes_array shape: ', headboxes_array.shape)
     return headboxes_array
 
 
-
-def eval_pckh(model_name, val_keypoints, val_annotations, class_names, threshold = 0.5):
+def eval_PCKh(eval_keypoints_array, eval_annotations, class_names, threshold=0.5):
     SC_BIAS = 0.6
 
-    #dict = loadmat('data/mpii/detections_our_format.mat')
-    #jnt_missing = dict['jnt_missing']
-    #jnt_visible = 1 - jnt_missing
-    #pos_gt_src = dict['pos_gt_src']
-    #headboxes_src = dict['headboxes_src']
+    # parse gt keypoints array, visible array and headboxes array
+    # for computing PCKh
+    gt_keypoints_array = get_gt_keypoints_array(eval_annotations)
+    keypoint_visible_array = get_visible_array(eval_annotations)
+    headboxes_array = get_headboxes_array(eval_annotations)
 
-    jnt_visible = get_visible_array(val_annotations)
-    pos_gt_src = get_pos_gt(val_annotations)
-    headboxes_src = get_headboxes(val_annotations)
+    # transpose eval result array for computing PCKh
+    eval_keypoints_array = np.transpose(eval_keypoints_array, [1, 2, 0])
 
-    # predictions
-    pos_pred_src = np.transpose(val_keypoints, [1, 2, 0])
+    # keypoints error
+    keypoints_error = eval_keypoints_array - gt_keypoints_array
+    keypoints_error = np.linalg.norm(keypoints_error, axis=1)
+
+    # normalized head size
+    headsizes = headboxes_array[1, :, :] - headboxes_array[0, :, :]
+    headsizes = np.linalg.norm(headsizes, axis=0)
+    headsizes *= SC_BIAS
+
+    # scaled keypoints error with head size
+    scale = np.multiply(headsizes, np.ones((len(keypoints_error), 1)))
+    scaled_keypoints_error = np.divide(keypoints_error, scale)
+    scaled_keypoints_error = np.multiply(scaled_keypoints_error, keypoint_visible_array)
+
+    # calculate PCKh@threshold score
+    keypoint_count = np.sum(keypoint_visible_array, axis=1)
+    less_than_threshold = np.multiply((scaled_keypoints_error < threshold), keypoint_visible_array)
+    PCKh = np.divide(100. * np.sum(less_than_threshold, axis=1), keypoint_count)
+
+    PCKh = np.ma.array(PCKh, mask=False)
+    PCKh.mask[6:8] = True
+
 
     # get index of MPII 16 keypoints
     head_top = class_names.index('head_top')
@@ -122,103 +147,124 @@ def eval_pckh(model_name, val_keypoints, val_annotations, class_names, threshold
     right_knee = class_names.index('right_knee')
     right_ankle = class_names.index('right_ankle')
 
-    # calculate PCKh@0.5 score
-    uv_error = pos_pred_src - pos_gt_src
-    uv_err = np.linalg.norm(uv_error, axis=1)
-    headsizes = headboxes_src[1, :, :] - headboxes_src[0, :, :]
-    headsizes = np.linalg.norm(headsizes, axis=0)
-    headsizes *= SC_BIAS
-    scale = np.multiply(headsizes, np.ones((len(uv_err), 1)))
-    scaled_uv_err = np.divide(uv_err, scale)
-    scaled_uv_err = np.multiply(scaled_uv_err, jnt_visible)
-    jnt_count = np.sum(jnt_visible, axis=1)
-    less_than_threshold = np.multiply((scaled_uv_err < threshold), jnt_visible)
-    PCKh = np.divide(100. * np.sum(less_than_threshold, axis=1), jnt_count)
+    # form PCKh metric dict
+    pckh_dict = {}
+    pckh_dict['Head'] = round(PCKh[head_top], 2)
+    pckh_dict['Shoulder'] = round(0.5 * (PCKh[left_shoulder] + PCKh[right_shoulder]), 2)
+    pckh_dict['Elbow'] = round(0.5 * (PCKh[left_elbow] + PCKh[right_elbow]), 2)
+    pckh_dict['Wrist'] = round(0.5 * (PCKh[left_wrist] + PCKh[right_wrist]), 2)
+    pckh_dict['Hip'] = round(0.5 * (PCKh[left_hip] + PCKh[right_hip]), 2)
+    pckh_dict['Knee'] = round(0.5 * (PCKh[left_knee] + PCKh[right_knee]), 2)
+    pckh_dict['Ankle'] = round(0.5 * (PCKh[left_ankle] + PCKh[right_ankle]), 2)
 
-    PCKh = np.ma.array(PCKh, mask=False)
-    PCKh.mask[6:8] = True
-    print("Model,  Head,   Shoulder, Elbow,  Wrist,   Hip ,     Knee  , Ankle ,  Mean")
-    print('{:s}   {:.2f}  {:.2f}     {:.2f}  {:.2f}   {:.2f}   {:.2f}   {:.2f}   {:.2f}'.format(model_name, PCKh[head_top],
-                                                                                                0.5 * (PCKh[left_shoulder] +
-                                                                                                       PCKh[right_shoulder]) \
-                                                                                                , 0.5 * (PCKh[left_elbow] +
-                                                                                                         PCKh[right_elbow]),
-                                                                                                0.5 * (PCKh[left_wrist] +
-                                                                                                       PCKh[right_wrist]),
-                                                                                                0.5 * (PCKh[left_hip] +
-                                                                                                       PCKh[right_hip]),
-                                                                                                0.5 * (PCKh[left_knee] +
-                                                                                                       PCKh[right_knee]) \
-                                                                                                , 0.5 * (PCKh[left_ankle] +
-                                                                                                         PCKh[right_ankle]),
-                                                                                                np.mean(PCKh)))
+    # show PCKh metric
+    print('\nPCKh evaluation')
+    print("Head, Shoulder, Elbow, Wrist, Hip, Knee, Ankle, Mean")
+    print('{:.2f} {:.2f}  {:.2f}  {:.2f} {:.2f}  {:.2f}  {:.2f} {:.2f}'.format(pckh_dict['Head'],
+                                                                               pckh_dict['Shoulder'],
+                                                                               pckh_dict['Elbow'],
+                                                                               pckh_dict['Wrist'],
+                                                                               pckh_dict['Hip'],
+                                                                               pckh_dict['Knee'],
+                                                                               pckh_dict['Ankle'],
+                                                                               np.mean(PCKh)))
 
-def main(args):
-    class_names = get_classes(args.classes_path)
-    num_classes = len(class_names)
+    # draw PCKh plot
+    window_title = "PCKh evaluation"
+    plot_title = "PCKh@{0} mean score = {1:.2f}%".format(threshold, np.mean(PCKh))
+    x_label = "Accuracy"
+    os.makedirs('result', exist_ok=True)
+    output_path = os.path.join('result','PCKh.png')
+    draw_plot_func(pckh_dict, len(pckh_dict), window_title, plot_title, x_label, output_path, to_show=False, plot_color='royalblue', true_p_bar='')
 
-    # load trained model for eval
-    model = load_model(args.model_path, compile=False)
 
-    # get input size, assume only 1 input
-    input_size = tuple(model.input.shape.as_list()[1:3])
 
-    # check & get output size
-    output_tensor = model.output
-    # check to handle multi-output model
-    if isinstance(output_tensor, list):
-        output_tensor = output_tensor[-1]
-    output_size = tuple(output_tensor.shape.as_list()[1:3])
+def mpii_eval(model, model_format, eval_dataset, class_names, model_image_size, score_threshold, conf_threshold):
+    if model_format == 'MNN':
+        #MNN inference engine need create session
+        session = model.createSession()
 
-    # check for any invalid input & output size
-    assert None not in input_size, 'Invalid input size.'
-    assert None not in output_size, 'Invalid output size.'
-    assert output_size[0] == input_size[0]//HG_OUTPUT_STRIDE and output_size[1] == input_size[1]//HG_OUTPUT_STRIDE, 'output size should be 1/{} of input size.'.format(HG_OUTPUT_STRIDE)
-
-    # prepare validation dataset
-    val_dataset = hourglass_dataset(args.dataset_path, class_names,
-                          input_size=input_size, is_train=False)
-
-    print('validation data size', val_dataset.get_dataset_size())
-
-    # form up the validation result matrix
-    val_keypoints = np.zeros(shape=(val_dataset.get_dataset_size(), num_classes, 2), dtype=np.float)
+    # form up empty eval result array
+    eval_keypoints_array = np.zeros(shape=(eval_dataset.get_dataset_size(), len(class_names), 2), dtype=np.float)
 
     count = 0
-    batch_size = 8
-    val_gen = val_dataset.generator(batch_size, num_hgstack=1, with_meta=True)
-    pbar = tqdm(total=val_dataset.get_dataset_size(), desc='Eval model')
-    # fetch validation data from generator, which will crop out single person area, resize to inres and normalize image
-    for _img, _gthmap, _meta in val_gen:
-        # get predicted heatmap
-        prediction = model.predict(_img)
-        if isinstance(prediction, list):
-            prediction = prediction[-1]
-        # transform predicted heatmap to final keypoint output,
-        # and store it into result matrix
-        get_final_pred_kps(val_keypoints, prediction, _meta, output_size)
-
+    batch_size = 1
+    pbar = tqdm(total=eval_dataset.get_dataset_size(), desc='Eval model')
+    for image_data, gt_heatmap, metainfo in eval_dataset.generator(batch_size, num_hgstack=1, with_meta=True):
+        # fetch validation data from generator, which will crop out single person area, resize to input_size and normalize image
         count += batch_size
-        if count > valdata.get_dataset_size():
+        if count > eval_dataset.get_dataset_size():
             break
+
+        # support of tflite model
+        if model_format == 'TFLITE':
+            heatmap = hourglass_predict_tflite(model, image_data)
+        # support of MNN model
+        elif model_format == 'MNN':
+            heatmap = hourglass_predict_mnn(model, session, image_data)
+        # support of TF 1.x frozen pb model
+        elif model_format == 'PB':
+            heatmap = hourglass_predict_pb(model, image_data)
+        # support of ONNX model
+        elif model_format == 'ONNX':
+            heatmap = hourglass_predict_onnx(model, image_data)
+        # normal keras h5 model
+        elif model_format == 'H5':
+            heatmap = hourglass_predict_keras(model, image_data)
+        else:
+            raise ValueError('invalid model format')
+
+        heatmap_shape = heatmap.shape[0:2]
+        metainfo = metainfo[0]
+
+        # get predict keypoints from heatmap
+        pred_keypoints = post_process_heatmap_simple(heatmap, conf_threshold)
+        pred_keypoints = np.array(pred_keypoints)
+
+        # revert predict keypoints to origin image size,
+        # and fill into eval result array
+        fill_eval_array(eval_keypoints_array, pred_keypoints, metainfo, model_image_size, heatmap_shape)
+
         pbar.update(batch_size)
     pbar.close()
 
-    # store result matrix, and use it to get PCKh metrics
-    eval_pckh(args.model_path, val_keypoints, val_dataset.get_annotations(), class_names)
+    # get PCKh metrics with eval result array and gt annotations
+    eval_PCKh(eval_keypoints_array, eval_dataset.get_annotations(), class_names, score_threshold)
     return
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Calculate PCKh metric on MPII dataset for Hourglass keypoint detection model')
+def main():
+    parser = argparse.ArgumentParser(description='Calculate PCKh metric on MPII dataset for keypoint detection model')
 
     parser.add_argument('--model_path', type=str, required=True, help='path to model file')
     parser.add_argument('--dataset_path', type=str, required=False, default='../../data/mpii',
         help='dataset path containing images and annotation file, default=%(default)s')
     parser.add_argument('--classes_path', type=str, required=False, default='../../configs/mpii_classes.txt',
         help='path to keypoint class definitions, default=%(default)s')
+    parser.add_argument('--score_threshold', type=float, required=False, default=0.5,
+        help='score threshold for PCK evaluation, default=%(default)s')
+    parser.add_argument('--conf_threshold', type=float, required=False, default=1e-6,
+        help='confidence threshold for filtering keypoint in postprocess, default=%(default)s')
+    parser.add_argument('--model_image_size', type=str, required=False, default='256x256',
+        help='model image input size as <height>x<width>, default=%(default)s')
 
     args = parser.parse_args()
 
-    main(args)
+    class_names = get_classes(args.classes_path)
+    height, width = args.model_image_size.split('x')
+    model_image_size = (int(height), int(width))
+
+    # load trained model for eval
+    model, model_format = load_eval_model(args.model_path)
+
+    # prepare eval dataset
+    eval_dataset = hourglass_dataset(args.dataset_path, class_names,
+                              input_size=model_image_size, is_train=False)
+    print('eval data size', eval_dataset.get_dataset_size())
+
+    mpii_eval(model, model_format, eval_dataset, class_names, model_image_size, args.score_threshold, args.conf_threshold)
+
+
+if __name__ == '__main__':
+    main()
 

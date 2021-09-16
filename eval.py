@@ -463,7 +463,7 @@ def eval_PCK(model, model_format, eval_dataset, class_names, model_image_size, s
         window_title = "PCK evaluation"
         plot_title = "PCK@{0} score = {1:.2f}%".format(score_threshold, total_accuracy)
         x_label = "Accuracy"
-        output_path = os.path.join('result','PCK.jpg')
+        output_path = os.path.join('result','PCK.png')
         draw_plot_func(accuracy_dict, len(accuracy_dict), window_title, plot_title, x_label, output_path, to_show=False, plot_color='royalblue', true_p_bar='')
 
     return total_accuracy, accuracy_dict
@@ -577,8 +577,10 @@ def main():
     model_image_size = (int(height), int(width))
     normalize = get_normalize(model_image_size)
 
+    # load trained model for eval
     model, model_format = load_eval_model(args.model_path)
 
+    # prepare eval dataset
     eval_dataset = hourglass_dataset(args.dataset_path, class_names,
                               input_size=model_image_size, is_train=False)
 
