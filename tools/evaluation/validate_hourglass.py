@@ -232,6 +232,12 @@ def validate_hourglass_model_onnx(model_path, image_file, class_names, skeleton_
 
 
 def validate_hourglass_model_pb(model_path, image_file, class_names, skeleton_lines, model_image_size, loop_count):
+    # check tf version to be compatible with TF 2.x
+    global tf
+    if tf.__version__.startswith('2'):
+        import tensorflow.compat.v1 as tf
+        tf.disable_eager_execution()
+
     # NOTE: TF 1.x frozen pb graph need to specify input/output tensor name
     # so we need to hardcode the input/output tensor names here to get them from model
     output_tensor_name = 'graph/hg1_conv_1x1_predict/BiasAdd:0'

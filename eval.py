@@ -471,6 +471,12 @@ def eval_PCK(model, model_format, eval_dataset, class_names, model_image_size, s
 
 #load TF 1.x frozen pb graph
 def load_graph(model_path):
+    # check tf version to be compatible with TF 2.x
+    global tf
+    if tf.__version__.startswith('2'):
+        import tensorflow.compat.v1 as tf
+        tf.disable_eager_execution()
+
     # We parse the graph_def file
     with tf.gfile.GFile(model_path, "rb") as f:
         graph_def = tf.GraphDef()
