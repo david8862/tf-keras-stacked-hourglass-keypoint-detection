@@ -131,13 +131,15 @@ Install requirements on Ubuntu 16.04/18.04:
 ```
 # python train.py -h
 usage: train.py [-h] [--num_stacks NUM_STACKS] [--mobile] [--tiny]
-                [--model_image_size MODEL_IMAGE_SIZE]
+                [--model_input_shape MODEL_INPUT_SHAPE]
                 [--weights_path WEIGHTS_PATH] [--dataset_path DATASET_PATH]
                 [--classes_path CLASSES_PATH]
                 [--matchpoint_path MATCHPOINT_PATH] [--batch_size BATCH_SIZE]
                 [--optimizer OPTIMIZER]
-                [--loss_type {mse,mae,smooth_l1,huber}]
-                [--learning_rate LEARNING_RATE] [--init_epoch INIT_EPOCH]
+                [--loss_type {mse,mae,weighted_mse,smooth_l1,huber}]
+                [--learning_rate LEARNING_RATE]
+                [--decay_type {None,cosine,exponential,polynomial,piecewise_constant}]
+                [--mixed_precision] [--init_epoch INIT_EPOCH]
                 [--total_epoch TOTAL_EPOCH] [--gpu_num GPU_NUM]
 
 optional arguments:
@@ -146,8 +148,8 @@ optional arguments:
                         number of hourglass stacks, default=2
   --mobile              use depthwise conv in hourglass'
   --tiny                tiny network for speed, feature channel=128
-  --model_image_size MODEL_IMAGE_SIZE
-                        model image input size as <height>x<width>,
+  --model_input_shape MODEL_INPUT_SHAPE
+                        model image input shape as <height>x<width>,
                         default=256x256
   --weights_path WEIGHTS_PATH
                         Pretrained model/weights file for fine tune
@@ -166,11 +168,14 @@ optional arguments:
   --optimizer OPTIMIZER
                         optimizer for training (adam/rmsprop/sgd),
                         default=rmsprop
-  --loss_type {mse,mae,smooth_l1,huber}
-                        loss type for training (mse/mae/smooth_l1/huber),
-                        default=mse
+  --loss_type {mse,mae,weighted_mse,smooth_l1,huber}
+                        loss type for training
+                        (mse/mae/weighted_mse/smooth_l1/huber), default=mse
   --learning_rate LEARNING_RATE
                         Initial learning rate, default=0.0005
+  --decay_type {None,cosine,exponential,polynomial,piecewise_constant}
+                        Learning rate decay type, default=None
+  --mixed_precision     Use mixed precision mode in training, only for TF>2.1
   --init_epoch INIT_EPOCH
                         initial training epochs for fine tune training,
                         default=0
@@ -237,7 +242,7 @@ MSCOCO keypoints detection sample:
 </p>
 
 ### Evaluation
-Use [eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/eval.py) to do evaluation on the inference model with your test dataset. Currently it support PCK (Percentage of Correct Keypoints) metric with standard normalize coefficient (by default 6.4 under input_size=(256,256)) on different score threshold. By default it will generate a MSCOCO format keypoints detection result json file `result/keypoints_result.json` ([format](http://cocodataset.org/#format-results)). You can also use `--save_result` to save all the detection result on evaluation dataset as images and `--skeleton_path` to draw keypoint skeleton on images:
+Use [eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/eval.py) to do evaluation on the inference model with your test dataset. Currently it support PCK (Percentage of Correct Keypoints) metric with standard normalize coefficient (by default 6.4 under input_shape=(256,256)) on different score threshold. By default it will generate a MSCOCO format keypoints detection result json file `result/keypoints_result.json` ([format](http://cocodataset.org/#format-results)). You can also use `--save_result` to save all the detection result on evaluation dataset as images and `--skeleton_path` to draw keypoint skeleton on images:
 
 ```
 # python eval.py --model_path=model.h5 --dataset_path=data/mscoco_2017/ --classes_path=configs/coco_classes.txt --save_result --skeleton_path=configs/coco_skeleton.txt

@@ -36,11 +36,11 @@ def main(args):
     # choose model type
     if args.tiny:
         num_channels = 128
-        #input_size = (192, 192)
+        #input_shape = (192, 192)
     else:
         num_channels = 256
-        #input_size = (256, 256)
-    input_size = args.model_image_size
+        #input_shape = (256, 256)
+    input_shape = args.model_input_shape
 
     if args.mixed_precision:
         tf_major_version = float(tf.__version__[:3])
@@ -56,20 +56,20 @@ def main(args):
 
     # get train/val dataset
     train_dataset = hourglass_dataset(args.dataset_path, class_names,
-                                input_size=input_size, is_train=True, matchpoints=matchpoints)
+                                input_shape=input_shape, is_train=True, matchpoints=matchpoints)
     val_dataset = hourglass_dataset(args.dataset_path, class_names,
-                              input_size=input_size, is_train=False, matchpoints=None)
+                              input_shape=input_shape, is_train=False, matchpoints=None)
 
     num_train = train_dataset.get_dataset_size()
     num_val = val_dataset.get_dataset_size()
 
     train_gen = train_dataset.generator(args.batch_size, num_hgstack=args.num_stacks, with_meta=False)
 
-    model_type = get_model_type(args.num_stacks, args.mobile, args.tiny, input_size)
+    model_type = get_model_type(args.num_stacks, args.mobile, args.tiny, input_shape)
 
     # callbacks for training process
     tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=0, write_graph=False, write_grads=False, write_images=False, update_freq='batch')
-    eval_callback = EvalCallBack(log_dir, args.dataset_path, class_names, input_size, model_type)
+    eval_callback = EvalCallBack(log_dir, args.dataset_path, class_names, input_shape, model_type)
     checkpoint_clean = CheckpointCleanCallBack(log_dir, max_val_keep=5)
     terminate_on_nan = TerminateOnNaN()
 
@@ -91,17 +91,17 @@ def main(args):
         strategy = tf.distribute.MirroredStrategy(devices=devices_list)
         print ('Number of devices: {}'.format(strategy.num_replicas_in_sync))
         with strategy.scope():
-            # get multi-gpu train model, doesn't specify input size
+            # get multi-gpu train model, doesn't specify input shape
             model = get_hourglass_model(num_classes, args.num_stacks, num_channels, mobile=args.mobile)
             # compile model
             model.compile(optimizer=optimizer, loss=loss_func)
     else:
-        # get normal train model, doesn't specify input size
+        # get normal train model, doesn't specify input shape
         model = get_hourglass_model(num_classes, args.num_stacks, num_channels, mobile=args.mobile)
         # compile model
         model.compile(optimizer=optimizer, loss=loss_func)
 
-    print('Create {} Stacked Hourglass model with stack number {}, channel number {}. train input size {}'.format('Mobile' if args.mobile else '', args.num_stacks, num_channels, input_size))
+    print('Create {} Stacked Hourglass model with stack number {}, channel number {}. train input shape {}'.format('Mobile' if args.mobile else '', args.num_stacks, num_channels, input_shape))
     model.summary()
 
     if args.weights_path:
@@ -109,7 +109,7 @@ def main(args):
         print('Load weights {}.'.format(args.weights_path))
 
     # start training
-    print('Train on {} samples, val on {} samples, with batch size {}, input_size {}.'.format(num_train, num_val, args.batch_size, input_size))
+    print('Train on {} samples, val on {} samples, with batch size {}, input_shape {}.'.format(num_train, num_val, args.batch_size, input_shape))
     model.fit_generator(generator=train_gen,
                         steps_per_epoch=num_train // args.batch_size,
                         epochs=args.total_epoch,
@@ -133,8 +133,8 @@ if __name__ == "__main__":
         help="use depthwise conv in hourglass'")
     parser.add_argument("--tiny", default=False, action="store_true",
         help="tiny network for speed, feature channel=128")
-    parser.add_argument('--model_image_size', type=str, required=False, default='256x256',
-        help = "model image input size as <height>x<width>, default=%(default)s")
+    parser.add_argument('--model_input_shape', type=str, required=False, default='256x256',
+        help = "model image input shape as <height>x<width>, default=%(default)s")
     parser.add_argument('--weights_path', type=str, required=False, default=None,
         help = "Pretrained model/weights file for fine tune")
 
@@ -167,7 +167,7 @@ if __name__ == "__main__":
         help='Number of GPU to use, default=%(default)s')
 
     args = parser.parse_args()
-    height, width = args.model_image_size.split('x')
-    args.model_image_size = (int(height), int(width))
+    height, width = args.model_input_shape.split('x')
+    args.model_input_shape = (int(height), int(width))
 
     main(args)

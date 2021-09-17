@@ -22,12 +22,12 @@ from eval import hourglass_predict_keras, hourglass_predict_tflite, hourglass_pr
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
-def fill_eval_array(eval_keypoints_array, pred_keypoints, metainfo, model_image_size, output_shape):
+def fill_eval_array(eval_keypoints_array, pred_keypoints, metainfo, model_input_shape, output_shape):
     # get sample index from meta info
     sample_index = metainfo['sample_index']
 
-    # revert predict keypoints back to origin image size
-    reverted_pred_keypoints = revert_pred_keypoints(pred_keypoints, metainfo, model_image_size, output_shape)
+    # revert predict keypoints back to origin image shape
+    reverted_pred_keypoints = revert_pred_keypoints(pred_keypoints, metainfo, model_input_shape, output_shape)
 
     # fill result array at sample_index
     eval_keypoints_array[sample_index, :, :] = reverted_pred_keypoints[:, 0:2]  # ignore the visibility
@@ -179,7 +179,7 @@ def eval_PCKh(eval_keypoints_array, eval_annotations, class_names, threshold=0.5
 
 
 
-def mpii_eval(model, model_format, eval_dataset, class_names, model_image_size, score_threshold, conf_threshold):
+def mpii_eval(model, model_format, eval_dataset, class_names, model_input_shape, score_threshold, conf_threshold):
     if model_format == 'MNN':
         #MNN inference engine need create session
         session = model.createSession()
@@ -191,7 +191,7 @@ def mpii_eval(model, model_format, eval_dataset, class_names, model_image_size, 
     batch_size = 1
     pbar = tqdm(total=eval_dataset.get_dataset_size(), desc='Eval model')
     for image_data, gt_heatmap, metainfo in eval_dataset.generator(batch_size, num_hgstack=1, with_meta=True):
-        # fetch validation data from generator, which will crop out single person area, resize to input_size and normalize image
+        # fetch validation data from generator, which will crop out single person area, resize to input_shape and normalize image
         count += batch_size
         if count > eval_dataset.get_dataset_size():
             break
@@ -221,9 +221,9 @@ def mpii_eval(model, model_format, eval_dataset, class_names, model_image_size, 
         pred_keypoints = post_process_heatmap_simple(heatmap, conf_threshold)
         pred_keypoints = np.array(pred_keypoints)
 
-        # revert predict keypoints to origin image size,
+        # revert predict keypoints to origin image shape,
         # and fill into eval result array
-        fill_eval_array(eval_keypoints_array, pred_keypoints, metainfo, model_image_size, heatmap_shape)
+        fill_eval_array(eval_keypoints_array, pred_keypoints, metainfo, model_input_shape, heatmap_shape)
 
         pbar.update(batch_size)
     pbar.close()
@@ -245,24 +245,24 @@ def main():
         help='score threshold for PCK evaluation, default=%(default)s')
     parser.add_argument('--conf_threshold', type=float, required=False, default=1e-6,
         help='confidence threshold for filtering keypoint in postprocess, default=%(default)s')
-    parser.add_argument('--model_image_size', type=str, required=False, default='256x256',
-        help='model image input size as <height>x<width>, default=%(default)s')
+    parser.add_argument('--model_input_shape', type=str, required=False, default='256x256',
+        help='model image input shape as <height>x<width>, default=%(default)s')
 
     args = parser.parse_args()
 
     class_names = get_classes(args.classes_path)
-    height, width = args.model_image_size.split('x')
-    model_image_size = (int(height), int(width))
+    height, width = args.model_input_shape.split('x')
+    model_input_shape = (int(height), int(width))
 
     # load trained model for eval
     model, model_format = load_eval_model(args.model_path)
 
     # prepare eval dataset
     eval_dataset = hourglass_dataset(args.dataset_path, class_names,
-                              input_size=model_image_size, is_train=False)
+                              input_shape=model_input_shape, is_train=False)
     print('eval data size', eval_dataset.get_dataset_size())
 
-    mpii_eval(model, model_format, eval_dataset, class_names, model_image_size, args.score_threshold, args.conf_threshold)
+    mpii_eval(model, model_format, eval_dataset, class_names, model_input_shape, args.score_threshold, args.conf_threshold)
 
 
 if __name__ == '__main__':

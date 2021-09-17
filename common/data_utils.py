@@ -610,23 +610,23 @@ def label_heatmap(img, pt, sigma, type='Gaussian'):
     return img
 
 
-def generate_gt_heatmap(keypoints, heatmap_size, sigma=1):
+def generate_gt_heatmap(keypoints, heatmap_shape, sigma=1):
     """
     generate ground truth keypoints heatmap
 
     # Arguments
         keypoints: keypoints array, shape=(num_keypoints, 3)
             each keypoints with format (x, y, visibility)
-        heatmap_size: ground truth heatmap shape
+        heatmap_shape: ground truth heatmap shape
             numpy array containing segment label mask
         sigma: variance of the 2D gaussian heatmap distribution
 
     # Returns
         gt_heatmap: ground truth keypoints heatmap,
-                    shape=(heatmap_size[0], heatmap_size[1], num_keypoints)
+                    shape=(heatmap_shape[0], heatmap_shape[1], num_keypoints)
     """
     num_keypoints = keypoints.shape[0]
-    gt_heatmap = np.zeros(shape=(heatmap_size[0], heatmap_size[1], num_keypoints), dtype=float)
+    gt_heatmap = np.zeros(shape=(heatmap_shape[0], heatmap_shape[1], num_keypoints), dtype=float)
 
     for i in range(num_keypoints):
         visibility = keypoints[i, 2]
@@ -663,7 +663,7 @@ def denormalize_image(imgdata, color_mean):
     return imgdata
 
 
-def preprocess_image(image, model_input_size, mean=(0.4404, 0.4440, 0.4327)):
+def preprocess_image(image, model_input_shape, mean=(0.4404, 0.4440, 0.4327)):
     """
     Prepare model input image data with
     resize, normalize and dim expansion
@@ -671,13 +671,13 @@ def preprocess_image(image, model_input_size, mean=(0.4404, 0.4440, 0.4327)):
     # Arguments
         image: origin input image
             PIL Image object containing image data
-        model_image_size: model input image size
+        model_input_shape: model input image shape
             tuple of format (height, width).
 
     # Returns
         image_data: numpy array of image data for model input.
     """
-    resized_image = image.resize(tuple(reversed(model_input_size)), Image.BICUBIC)
+    resized_image = image.resize(tuple(reversed(model_input_shape)), Image.BICUBIC)
     image_data = np.asarray(resized_image).astype('float32')
 
     mean = np.array(mean, dtype=np.float)

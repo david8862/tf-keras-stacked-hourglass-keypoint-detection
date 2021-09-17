@@ -125,23 +125,23 @@ def get_averaged_optimizer(average_type, optimizer):
     return averaged_optimizer
 
 
-def get_normalize(input_size):
+def get_normalize(input_shape):
     """
     rescale keypoint distance normalize coefficient
-    based on input size, used for PCK evaluation
+    based on input shape, used for PCK evaluation
 
     NOTE: 6.4 is standard normalize coefficient under
-          input size (256,256)
+          input shape (256,256)
 
     # Arguments
-        input_size: input image size as (height, width)
+        input_shape: input image shape as (height, width)
 
     # Returns
         scale: normalize coefficient
     """
-    #assert input_size[0] == input_size[1], 'only support square input size.'
+    #assert input_shape[0] == input_shape[1], 'only support square input shape.'
 
-    # use averaged scale factor for non square input size
-    scale = float((input_size[0] + input_size[1]) / 2) / 256.0
+    # use averaged scale factor for non square input shape
+    scale = float((input_shape[0] + input_shape[1]) / 2) / 256.0
 
     return 6.4*scale

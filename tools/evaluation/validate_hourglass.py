@@ -27,7 +27,7 @@ def process_heatmap(heatmap, image, scale, class_names, skeleton_lines):
     # parse out predicted keypoint from heatmap
     keypoints = post_process_heatmap_simple(heatmap)
 
-    # rescale keypoints back to origin image size
+    # rescale keypoints back to origin image shape
     keypoints_dict = dict()
     for i, keypoint in enumerate(keypoints):
         keypoints_dict[class_names[i]] = (keypoint[0] * scale[0] * HG_OUTPUT_STRIDE, keypoint[1] * scale[1] * HG_OUTPUT_STRIDE, keypoint[2])
@@ -47,14 +47,14 @@ def process_heatmap(heatmap, image, scale, class_names, skeleton_lines):
     return
 
 
-def validate_hourglass_model(model_path, image_file, class_names, skeleton_lines, model_image_size, loop_count):
+def validate_hourglass_model(model_path, image_file, class_names, skeleton_lines, model_input_shape, loop_count):
     model = load_model(model_path, compile=False)
 
     img = Image.open(image_file)
     image = np.array(img, dtype='uint8')
-    image_data = preprocess_image(img, model_image_size)
+    image_data = preprocess_image(img, model_input_shape)
     image_size = img.size
-    scale = (image_size[0] * 1.0 / model_image_size[1], image_size[1] * 1.0 / model_image_size[0])
+    scale = (image_size[0] * 1.0 / model_input_shape[1], image_size[1] * 1.0 / model_input_shape[0])
 
     # predict once first to bypass the model building time
     model.predict(image_data)
@@ -92,11 +92,11 @@ def validate_hourglass_model_tflite(model_path, image_file, class_names, skeleto
 
     height = input_details[0]['shape'][1]
     width = input_details[0]['shape'][2]
-    model_image_size = (height, width)
+    model_input_shape = (height, width)
 
-    image_data = preprocess_image(img, model_image_size)
+    image_data = preprocess_image(img, model_input_shape)
     image_size = img.size
-    scale = (image_size[0] * 1.0 / model_image_size[1], image_size[1] * 1.0 / model_image_size[0])
+    scale = (image_size[0] * 1.0 / model_input_shape[1], image_size[1] * 1.0 / model_input_shape[0])
 
     # predict once first to bypass the model building time
     interpreter.set_tensor(input_details[0]['index'], image_data)
@@ -135,14 +135,14 @@ def validate_hourglass_model_mnn(model_path, image_file, class_names, skeleton_l
         # should be MNN.Tensor_DimensionType_Caffe_C4, unsupported now
         raise ValueError('unsupported input tensor dimension type')
 
-    model_image_size = (height, width)
+    model_input_shape = (height, width)
 
     # prepare input image
     img = Image.open(image_file)
     image = np.array(img, dtype='uint8')
-    image_data = preprocess_image(img, model_image_size)
+    image_data = preprocess_image(img, model_input_shape)
     image_size = img.size
-    scale = (image_size[0] * 1.0 / model_image_size[1], image_size[1] * 1.0 / model_image_size[0])
+    scale = (image_size[0] * 1.0 / model_input_shape[1], image_size[1] * 1.0 / model_input_shape[0])
 
     # use a temp tensor to copy data
     tmp_input = MNN.Tensor(input_shape, input_tensor.getDataType(),\
@@ -197,7 +197,7 @@ def validate_hourglass_model_onnx(model_path, image_file, class_names, skeleton_
     assert len(input_tensors) == 1, 'invalid input tensor number.'
 
     batch, height, width, channel = input_tensors[0].shape
-    model_image_size = (height, width)
+    model_input_shape = (height, width)
 
     output_tensors = []
     for i, output_tensor in enumerate(sess.get_outputs()):
@@ -207,9 +207,9 @@ def validate_hourglass_model_onnx(model_path, image_file, class_names, skeleton_
 
     # prepare input image
     img = Image.open(image_file)
-    image_data = preprocess_image(img, model_image_size)
+    image_data = preprocess_image(img, model_input_shape)
     image_size = img.size
-    scale = (image_size[0] * 1.0 / model_image_size[1], image_size[1] * 1.0 / model_image_size[0])
+    scale = (image_size[0] * 1.0 / model_input_shape[1], image_size[1] * 1.0 / model_input_shape[0])
 
     feed = {input_tensors[0].name: image_data}
 
@@ -231,7 +231,7 @@ def validate_hourglass_model_onnx(model_path, image_file, class_names, skeleton_
     return
 
 
-def validate_hourglass_model_pb(model_path, image_file, class_names, skeleton_lines, model_image_size, loop_count):
+def validate_hourglass_model_pb(model_path, image_file, class_names, skeleton_lines, model_input_shape, loop_count):
     # check tf version to be compatible with TF 2.x
     global tf
     if tf.__version__.startswith('2'):
@@ -247,10 +247,9 @@ def validate_hourglass_model_pb(model_path, image_file, class_names, skeleton_li
 
     img = Image.open(image_file)
     image = np.array(img, dtype='uint8')
-    image_data = preprocess_image(img, model_image_size)
-    #image_shape = img.size
+    image_data = preprocess_image(img, model_input_shape)
     image_size = img.size
-    scale = (image_size[0] * 1.0 / model_image_size[1], image_size[1] * 1.0 / model_image_size[0])
+    scale = (image_size[0] * 1.0 / model_input_shape[1], image_size[1] * 1.0 / model_input_shape[0])
 
     #load frozen pb graph
     def load_pb_graph(model_path):
@@ -314,7 +313,7 @@ def main():
     parser.add_argument('--image_file', help='image file to predict', type=str, required=True)
     parser.add_argument('--classes_path', help='path to class definitions, default=%(default)s', type=str, required=False, default='../../configs/mpii_classes.txt')
     parser.add_argument('--skeleton_path', help='path to keypoint skeleton definitions, default=%(default)s', type=str, required=False, default=None)
-    parser.add_argument('--model_image_size', help='model image input size as <height>x<width>, default=%(default)s', type=str, default='256x256')
+    parser.add_argument('--model_input_shape', help='model image input shape as <height>x<width>, default=%(default)s', type=str, default='256x256')
     parser.add_argument('--loop_count', help='loop inference for certain times', type=int, default=1)
 
     args = parser.parse_args()
@@ -326,8 +325,8 @@ def main():
         skeleton_lines = None
 
     class_names = get_classes(args.classes_path)
-    height, width = args.model_image_size.split('x')
-    model_image_size = (int(height), int(width))
+    height, width = args.model_input_shape.split('x')
+    model_input_shape = (int(height), int(width))
 
 
     # support of tflite model
@@ -338,13 +337,13 @@ def main():
         validate_hourglass_model_mnn(args.model_path, args.image_file, class_names, skeleton_lines, args.loop_count)
     ## support of TF 1.x frozen pb model
     elif args.model_path.endswith('.pb'):
-        validate_hourglass_model_pb(args.model_path, args.image_file, class_names, skeleton_lines, model_image_size, args.loop_count)
+        validate_hourglass_model_pb(args.model_path, args.image_file, class_names, skeleton_lines, model_input_shape, args.loop_count)
     # support of ONNX model
     elif args.model_path.endswith('.onnx'):
         validate_hourglass_model_onnx(args.model_path, args.image_file, class_names, skeleton_lines, args.loop_count)
     ## normal keras h5 model
     elif args.model_path.endswith('.h5'):
-        validate_hourglass_model(args.model_path, args.image_file, class_names, skeleton_lines, model_image_size, args.loop_count)
+        validate_hourglass_model(args.model_path, args.image_file, class_names, skeleton_lines, model_input_shape, args.loop_count)
     else:
         raise ValueError('invalid model file')
 

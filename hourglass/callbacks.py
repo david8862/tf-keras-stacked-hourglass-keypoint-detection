@@ -25,16 +25,16 @@ class CheckpointCleanCallBack(Callback):
 
 
 class EvalCallBack(Callback):
-    def __init__(self, log_dir, dataset_path, class_names, input_size, model_type):
+    def __init__(self, log_dir, dataset_path, class_names, input_shape, model_type):
         self.log_dir = log_dir
         self.dataset_path = dataset_path
         self.class_names = class_names
-        self.normalize = get_normalize(input_size)
-        self.input_size = input_size
+        self.normalize = get_normalize(input_shape)
+        self.input_shape = input_shape
         self.best_acc = 0.0
 
         val_dataset = hourglass_dataset(self.dataset_path, self.class_names,
-                              input_size=self.input_size, is_train=False)
+                              input_shape=self.input_shape, is_train=False)
 
         # record model & dataset name to draw training curve
         with open(os.path.join(self.log_dir, 'val.txt'), 'a+') as xfile:
@@ -43,9 +43,9 @@ class EvalCallBack(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         val_dataset = hourglass_dataset(self.dataset_path, self.class_names,
-                              input_size=self.input_size, is_train=False)
+                              input_shape=self.input_shape, is_train=False)
 
-        val_acc, _ = eval_PCK(self.model, 'H5', val_dataset, self.class_names, self.input_size, score_threshold=0.5, normalize=self.normalize, conf_threshold=1e-6, save_result=False)
+        val_acc, _ = eval_PCK(self.model, 'H5', val_dataset, self.class_names, self.input_shape, score_threshold=0.5, normalize=self.normalize, conf_threshold=1e-6, save_result=False)
         print('validate accuray', val_acc, '@epoch', epoch)
 
         # record accuracy for every epoch to draw training curve

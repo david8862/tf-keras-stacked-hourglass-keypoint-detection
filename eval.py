@@ -165,7 +165,7 @@ def draw_plot_func(dictionary, n_classes, window_title, plot_title, x_label, out
     plt.close()
 
 
-def revert_pred_keypoints(keypoints, metainfo, model_image_size, heatmap_size):
+def revert_pred_keypoints(keypoints, metainfo, model_input_shape, heatmap_shape):
     # invert transform keypoints based on center & scale
     center = metainfo['center']
     scale = metainfo['scale']
@@ -175,10 +175,10 @@ def revert_pred_keypoints(keypoints, metainfo, model_image_size, heatmap_size):
     # 2 ways of keypoints invert transform, according to data preprocess solutions in hourglass/data.py
 
     # Option 1 (from origin repo):
-    reverted_keypoints = invert_transform_keypoints(keypoints, center, scale, heatmap_size, rotate_angle=0)
+    reverted_keypoints = invert_transform_keypoints(keypoints, center, scale, heatmap_shape, rotate_angle=0)
 
     # Option 2:
-    #reverted_keypoints = revert_keypoints(keypoints, center, scale, image_shape, model_image_size)
+    #reverted_keypoints = revert_keypoints(keypoints, center, scale, image_shape, model_input_shape)
 
     return reverted_keypoints
 
@@ -236,7 +236,7 @@ def hourglass_predict_tflite(interpreter, image_data):
 
     height = input_details[0]['shape'][1]
     width = input_details[0]['shape'][2]
-    model_image_size = (height, width)
+    model_input_shape = (height, width)
 
     image_data = image_data.astype('float32')
     # predict once first to bypass the model building time
@@ -360,7 +360,7 @@ def get_result_dict(pred_keypoints, metainfo):
     return result_dict
 
 
-def eval_PCK(model, model_format, eval_dataset, class_names, model_image_size, score_threshold, normalize, conf_threshold, save_result=False, skeleton_lines=None):
+def eval_PCK(model, model_format, eval_dataset, class_names, model_input_shape, score_threshold, normalize, conf_threshold, save_result=False, skeleton_lines=None):
     if model_format == 'MNN':
         #MNN inference engine need create session
         session = model.createSession()
@@ -384,7 +384,7 @@ def eval_PCK(model, model_format, eval_dataset, class_names, model_image_size, s
     batch_size = 1
     pbar = tqdm(total=eval_dataset.get_dataset_size(), desc='Eval model')
     for image_data, gt_heatmap, metainfo in eval_dataset.generator(batch_size, num_hgstack=8, with_meta=True):
-        # fetch validation data from generator, which will crop out single person area, resize to input_size and normalize image
+        # fetch validation data from generator, which will crop out single person area, resize to input_shape and normalize image
         count += batch_size
         if count > eval_dataset.get_dataset_size():
             break
@@ -407,7 +407,7 @@ def eval_PCK(model, model_format, eval_dataset, class_names, model_image_size, s
         else:
             raise ValueError('invalid model format')
 
-        heatmap_size = heatmap.shape[0:2]
+        heatmap_shape = heatmap.shape[0:2]
 
         # get predict keypoints from heatmap
         pred_keypoints = post_process_heatmap_simple(heatmap, conf_threshold)
@@ -426,8 +426,8 @@ def eval_PCK(model, model_format, eval_dataset, class_names, model_image_size, s
             elif result_list[i] == 1:
                 succeed_dict[class_name] = succeed_dict[class_name] + 1
 
-        # revert predict keypoints back to origin image size
-        reverted_pred_keypoints = revert_pred_keypoints(pred_keypoints, metainfo, model_image_size, heatmap_size)
+        # revert predict keypoints back to origin image shape
+        reverted_pred_keypoints = revert_pred_keypoints(pred_keypoints, metainfo, model_input_shape, heatmap_shape)
 
         # get coco result dict with predict keypoints and image info
         result_dict = get_result_dict(reverted_pred_keypoints, metainfo)
@@ -559,8 +559,8 @@ def main():
         help='confidence threshold for filtering keypoint in postprocess, default=%(default)s', default=1e-6)
 
     parser.add_argument(
-        '--model_image_size', type=str,
-        help='model image input size as <height>x<width>, default=%(default)s', default='256x256')
+        '--model_input_shape', type=str,
+        help='model image input shape as <height>x<width>, default=%(default)s', default='256x256')
 
     parser.add_argument(
         '--save_result', default=False, action="store_true",
@@ -579,18 +579,18 @@ def main():
         skeleton_lines = None
 
     class_names = get_classes(args.classes_path)
-    height, width = args.model_image_size.split('x')
-    model_image_size = (int(height), int(width))
-    normalize = get_normalize(model_image_size)
+    height, width = args.model_input_shape.split('x')
+    model_input_shape = (int(height), int(width))
+    normalize = get_normalize(model_input_shape)
 
     # load trained model for eval
     model, model_format = load_eval_model(args.model_path)
 
     # prepare eval dataset
     eval_dataset = hourglass_dataset(args.dataset_path, class_names,
-                              input_size=model_image_size, is_train=False)
+                              input_shape=model_input_shape, is_train=False)
 
-    total_accuracy, accuracy_dict = eval_PCK(model, model_format, eval_dataset, class_names, model_image_size, args.score_threshold, normalize, args.conf_threshold, args.save_result, skeleton_lines)
+    total_accuracy, accuracy_dict = eval_PCK(model, model_format, eval_dataset, class_names, model_input_shape, args.score_threshold, normalize, args.conf_threshold, args.save_result, skeleton_lines)
 
     print('\nPCK evaluation')
     for (class_name, accuracy) in accuracy_dict.items():

@@ -22,7 +22,7 @@ def main():
 
     parser.add_argument('--output_path', type=str, required=False,  help='output path for augmented images, default=%(default)s', default='./test')
     parser.add_argument('--batch_size', type=int, required=False, help = "batch size for test data, default=%(default)s", default=16)
-    parser.add_argument('--model_image_size', type=str, required=False, help='model image input size as <height>x<width>, default=%(default)s', default='256x256')
+    parser.add_argument('--model_input_shape', type=str, required=False, help='model image input shape as <height>x<width>, default=%(default)s', default='256x256')
 
     args = parser.parse_args()
 
@@ -31,14 +31,14 @@ def main():
     else:
         skeleton_lines = None
     class_names = get_classes(args.classes_path)
-    height, width = args.model_image_size.split('x')
-    model_image_size = (int(height), int(width))
+    height, width = args.model_input_shape.split('x')
+    model_input_shape = (int(height), int(width))
 
     os.makedirs(args.output_path, exist_ok=True)
 
     # prepare train dataset (having augmented data process)
     dataset = hourglass_dataset(args.dataset_path, class_names,
-                          input_size=model_image_size, is_train=True)
+                          input_shape=model_input_shape, is_train=True)
     data_gen = dataset.generator(batch_size=1, num_hgstack=1, with_meta=True)
 
     pbar = tqdm(total=args.batch_size, desc='Generate augment image')

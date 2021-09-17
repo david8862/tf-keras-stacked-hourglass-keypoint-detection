@@ -23,7 +23,7 @@ default_config = {
         "num_stacks": 2,
         "mobile" : False,
         "tiny" : False,
-        "model_image_size": (256, 256),
+        "model_input_shape": (256, 256),
         "num_channels": 256,
         "conf_threshold": 0.001,
         "classes_path": os.path.join('configs', 'mpii_classes.txt'),
@@ -76,7 +76,7 @@ class Hourglass(object):
             self.num_channels = 128
 
         # construct model and load weights.
-        hourglass_model = get_hourglass_model(num_classes, self.num_stacks, self.num_channels, input_size=self.model_image_size, mobile=self.mobile)
+        hourglass_model = get_hourglass_model(num_classes, self.num_stacks, self.num_channels, input_shape=self.model_input_shape, mobile=self.mobile)
         hourglass_model.load_weights(weights_path, by_name=False)#, skip_mismatch=True)
         hourglass_model.summary()
         return hourglass_model
@@ -123,16 +123,16 @@ class Hourglass(object):
             person_image = Image.fromarray(image_array[ymin:ymax, xmin:xmax])
             person_array = np.array(person_image, dtype='uint8')
 
-            image_data = preprocess_image(person_image, self.model_image_size)
+            image_data = preprocess_image(person_image, self.model_input_shape)
 
             # NOTE: image_size and scale in (w,h) format, but
-            #       self.model_image_size in (h,w) format
+            #       self.model_input_shape in (h,w) format
             image_size = person_image.size
-            scale = (image_size[0] * 1.0 / self.model_image_size[1], image_size[1] * 1.0 / self.model_image_size[0])
+            scale = (image_size[0] * 1.0 / self.model_input_shape[1], image_size[1] * 1.0 / self.model_input_shape[0])
 
             keypoints = self.predict(image_data)
 
-            # rescale keypoints back to origin image size
+            # rescale keypoints back to origin image shape
             keypoints_dict = dict()
             for i, keypoint in enumerate(keypoints):
                 keypoints_dict[self.class_names[i]] = (keypoint[0] * scale[0] * HG_OUTPUT_STRIDE + xmin, keypoint[1] * scale[1] * HG_OUTPUT_STRIDE + ymin, keypoint[2])
@@ -172,12 +172,12 @@ class Hourglass(object):
             person_image = Image.fromarray(image_array[ymin:ymax, xmin:xmax])
             person_array = np.array(person_image, dtype='uint8')
 
-            image_data = preprocess_image(person_image, self.model_image_size)
+            image_data = preprocess_image(person_image, self.model_input_shape)
 
             # NOTE: image_size and scale in (w,h) format, but
-            #       self.model_image_size in (h,w) format
+            #       self.model_input_shape in (h,w) format
             image_size = person_image.size
-            scale = (image_size[0] * 1.0 / self.model_image_size[1], image_size[1] * 1.0 / self.model_image_size[0])
+            scale = (image_size[0] * 1.0 / self.model_input_shape[1], image_size[1] * 1.0 / self.model_input_shape[0])
 
             # merge batched info for inference
             batch_scale.append(scale)
@@ -200,7 +200,7 @@ class Hourglass(object):
             raw_xmin, raw_ymin, raw_xmax, raw_ymax = batch_raw_box[i]
             xmin, ymin, xmax, ymax = batch_box[i]
 
-            # rescale keypoints back to origin image size
+            # rescale keypoints back to origin image shape
             keypoints_dict = dict()
             for j, keypoint in enumerate(keypoints):
                 keypoints_dict[self.class_names[j]] = (keypoint[0] * scale[0] * HG_OUTPUT_STRIDE + xmin, keypoint[1] * scale[1] * HG_OUTPUT_STRIDE + ymin, keypoint[2])
@@ -332,10 +332,10 @@ if __name__ == "__main__":
         help='tiny network for speed, feature channel=128, default ' + str(Hourglass.get_defaults("tiny"))
     )
     parser.add_argument(
-        '--model_image_size', type=str,
-        help='model image input size as <height>x<width>, default ' +
-        str(Hourglass.get_defaults("model_image_size")[0])+'x'+str(Hourglass.get_defaults("model_image_size")[1]),
-        default=str(Hourglass.get_defaults("model_image_size")[0])+'x'+str(Hourglass.get_defaults("model_image_size")[1])
+        '--model_input_shape', type=str,
+        help='model image input shape as <height>x<width>, default ' +
+        str(Hourglass.get_defaults("model_input_shape")[0])+'x'+str(Hourglass.get_defaults("model_input_shape")[1]),
+        default=str(Hourglass.get_defaults("model_input_shape")[0])+'x'+str(Hourglass.get_defaults("model_input_shape")[1])
     )
     parser.add_argument(
         '--weights_path', type=str,
@@ -384,9 +384,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     # param parse
-    if args.model_image_size:
-        height, width = args.model_image_size.split('x')
-        args.model_image_size = (int(height), int(width))
+    if args.model_input_shape:
+        height, width = args.model_input_shape.split('x')
+        args.model_input_shape = (int(height), int(width))
 
     # get wrapped inference object
     hourglass = Hourglass(**vars(args))

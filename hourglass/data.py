@@ -15,15 +15,15 @@ HG_OUTPUT_STRIDE = 4
 
 
 class hourglass_dataset(object):
-    def __init__(self, dataset_path, class_names, input_size, is_train, matchpoints=None):
+    def __init__(self, dataset_path, class_names, input_shape, is_train, matchpoints=None):
         self.jsonfile = os.path.join(dataset_path, 'annotations.json')
         self.is_train = is_train
         self.imgpath = os.path.join(dataset_path, 'images')
         self.class_names = class_names
         self.num_classes = len(class_names)
-        self.input_size = input_size
-        # output heatmap size should be 1/HG_OUTPUT_STRIDE of input size
-        self.output_size = (self.input_size[0]//HG_OUTPUT_STRIDE, self.input_size[1]//HG_OUTPUT_STRIDE)
+        self.input_shape = input_shape
+        # output heatmap shape should be 1/HG_OUTPUT_STRIDE of input shape
+        self.output_shape = (self.input_shape[0]//HG_OUTPUT_STRIDE, self.input_shape[1]//HG_OUTPUT_STRIDE)
         self.dataset_name = None
         self.annotations = self._load_image_annotation()
         self.horizontal_matchpoints, self.vertical_matchpoints = self._get_matchpoint_list(matchpoints)
@@ -99,8 +99,8 @@ class hourglass_dataset(object):
 
     def generator(self, batch_size, num_hgstack, with_meta=False):
         '''
-        Input:  batch_size * input_size  * channel (3)
-        Output: batch_size * output_size * num_classes
+        Input:  batch_size * input_shape  * channel (3)
+        Output: batch_size * output_shape * num_classes
         '''
 
         while True:
@@ -108,8 +108,8 @@ class hourglass_dataset(object):
                 # shuffle train data every epoch
                 random.shuffle(self.annotations)
 
-            batch_images = np.zeros(shape=(batch_size, self.input_size[0], self.input_size[1], 3), dtype=np.float32)
-            batch_heatmaps = np.zeros(shape=(batch_size, self.output_size[0], self.output_size[1], self.num_classes), dtype=np.float32)
+            batch_images = np.zeros(shape=(batch_size, self.input_shape[0], self.input_shape[1], 3), dtype=np.float32)
+            batch_heatmaps = np.zeros(shape=(batch_size, self.output_shape[0], self.output_shape[1], self.num_classes), dtype=np.float32)
             batch_metainfo = list()
 
             count = 0
@@ -206,23 +206,23 @@ class hourglass_dataset(object):
         # 2 solutions of input data preprocess, including:
         #     1. crop single object area from origin image
         #     2. apply rotate augment
-        #     3. resize to model input size
+        #     3. resize to model input shape
         #     4. transform gt keypoints to cropped image reference
 
         ###############################
         # Option 1 (from origin repo):
-        # crop out single object area, resize to input size and normalize image
-        image = crop_image(image, center, scale, self.input_size, rotate_angle)
+        # crop out single object area, resize to input shape and normalize image
+        image = crop_image(image, center, scale, self.input_shape, rotate_angle)
 
         # transform keypoints to cropped image reference
-        transformed_keypoints = transform_keypoints(keypoints, center, scale, self.output_size, rotate_angle)
+        transformed_keypoints = transform_keypoints(keypoints, center, scale, self.output_shape, rotate_angle)
         ###############################
 
 
         ###############################
         # Option 2:
         # crop out single object area and transform keypoints coordinates to single object reference
-        #image, transformed_keypoints = crop_single_object(image, keypoints, center, scale, self.input_size)
+        #image, transformed_keypoints = crop_single_object(image, keypoints, center, scale, self.input_shape)
 
         #if rotate_angle != 0:
             # rotate single object image and keypoints coordinates when augment
@@ -242,7 +242,7 @@ class hourglass_dataset(object):
         image = normalize_image(image, self.get_color_mean())
 
         # generate ground truth keypoint heatmap
-        gt_heatmap = generate_gt_heatmap(transformed_keypoints, self.output_size)
+        gt_heatmap = generate_gt_heatmap(transformed_keypoints, self.output_shape)
 
         # meta info
         metainfo = {'sample_index': sample_index, 'center': center, 'scale': scale, 'image_shape': image_shape,
