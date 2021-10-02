@@ -34,7 +34,7 @@ default_config = {
         "det_model_path": os.path.join('detector', 'yolo3_mobilenet_lite_320_coco.h5'),
         "det_anchors_path": os.path.join('detector', 'yolo3_anchors.txt'),
         "det_classes_path": os.path.join('detector', 'coco_classes.txt'),
-        "det_model_image_size": (320, 320),
+        "det_model_input_shape": (320, 320),
 
         "gpu_num" : 1,
     }
@@ -112,7 +112,7 @@ class Hourglass(object):
         image_array = np.array(image, dtype='uint8')
 
         start = time.time()
-        person_boxes, person_scores = detect_person(image, self.det_model, self.det_anchors, self.det_class_names, self.det_model_image_size)
+        person_boxes, person_scores = detect_person(image, self.det_model, self.det_anchors, self.det_class_names, self.det_model_input_shape)
         for box, score in zip(person_boxes, person_scores):
             raw_xmin, raw_ymin, raw_xmax, raw_ymax = map(int, box)
 
@@ -156,7 +156,7 @@ class Hourglass(object):
         image_array = np.array(image, dtype='uint8')
         start = time.time()
 
-        person_boxes, person_scores = detect_person(image, self.det_model, self.det_anchors, self.det_class_names, self.det_model_image_size)
+        person_boxes, person_scores = detect_person(image, self.det_model, self.det_anchors, self.det_class_names, self.det_model_input_shape)
 
         batch_image_data = []
         batch_scale = []

@@ -6,17 +6,21 @@ https://github.com/david8862/keras-YOLOv3-model-set
 
 which can be used for multi person keypoint detection
 """
-#import os, sys, argparse
-#import time
 from PIL import Image
 import cv2
-import math
 import numpy as np
-#from tensorflow.keras.models import load_model
+from tensorflow.keras.models import load_model
 
 import copy
 from scipy.special import expit, softmax
 
+
+def get_classes(classes_path):
+    '''loads the classes'''
+    with open(classes_path) as f:
+        class_names = f.readlines()
+    class_names = [c.strip() for c in class_names]
+    return class_names
 
 def get_anchors(anchors_path):
     '''loads the anchors from a file'''
@@ -87,7 +91,7 @@ def normalize_image(image):
     return image
 
 
-def preprocess_image(image, model_image_size):
+def preprocess_image(image, model_input_shape):
     """
     Prepare model input image data with letterbox
     resize, normalize and dim expansion
@@ -95,14 +99,14 @@ def preprocess_image(image, model_image_size):
     # Arguments
         image: origin input image
             PIL Image object containing image data
-        model_image_size: model input image size
+        model_input_shape: model input image shape
             tuple of format (height, width).
 
     # Returns
         image_data: numpy array of image data for model input.
     """
-    #resized_image = cv2.resize(image, tuple(reversed(model_image_size)), cv2.INTER_AREA)
-    resized_image = letterbox_resize(image, tuple(reversed(model_image_size)))
+    #resized_image = cv2.resize(image, model_input_shape[::-1], cv2.INTER_AREA)
+    resized_image = letterbox_resize(image, model_input_shape[::-1])
     image_data = np.asarray(resized_image).astype('float32')
     image_data = normalize_image(image_data)
     image_data = np.expand_dims(image_data, 0)  # Add batch dimension.
@@ -110,23 +114,23 @@ def preprocess_image(image, model_image_size):
 
 
 
-def yolo_decode(prediction, anchors, num_classes, input_dims, scale_x_y=None, use_softmax=False):
+def yolo_decode(prediction, anchors, num_classes, input_shape, scale_x_y=None, use_softmax=False):
     '''Decode final layer features to bounding box parameters.'''
     batch_size = np.shape(prediction)[0]
     num_anchors = len(anchors)
 
-    grid_size = np.shape(prediction)[1:3]
+    grid_shape = np.shape(prediction)[1:3]
     #check if stride on height & width are same
-    assert input_dims[0]//grid_size[0] == input_dims[1]//grid_size[1], 'model stride mismatch.'
-    stride = input_dims[0] // grid_size[0]
+    assert input_shape[0]//grid_shape[0] == input_shape[1]//grid_shape[1], 'model stride mismatch.'
+    stride = input_shape[0] // grid_shape[0]
 
     prediction = np.reshape(prediction,
-                            (batch_size, grid_size[0] * grid_size[1] * num_anchors, num_classes + 5))
+                            (batch_size, grid_shape[0] * grid_shape[1] * num_anchors, num_classes + 5))
 
     ################################
     # generate x_y_offset grid map
-    grid_y = np.arange(grid_size[0])
-    grid_x = np.arange(grid_size[1])
+    grid_y = np.arange(grid_shape[0])
+    grid_x = np.arange(grid_shape[1])
     x_offset, y_offset = np.meshgrid(grid_x, grid_y)
 
     x_offset = np.reshape(x_offset, (-1, 1))
@@ -140,7 +144,7 @@ def yolo_decode(prediction, anchors, num_classes, input_dims, scale_x_y=None, us
     ################################
 
     # Log space transform of the height and width
-    anchors = np.tile(anchors, (grid_size[0] * grid_size[1], 1))
+    anchors = np.tile(anchors, (grid_shape[0] * grid_shape[1], 1))
     anchors = np.expand_dims(anchors, 0)
 
     if scale_x_y:
@@ -152,10 +156,10 @@ def yolo_decode(prediction, anchors, num_classes, input_dims, scale_x_y=None, us
         #     https://github.com/opencv/opencv/issues/17148
         #
         box_xy_tmp = expit(prediction[..., :2]) * scale_x_y - (scale_x_y - 1) / 2
-        box_xy = (box_xy_tmp + x_y_offset) / np.array(grid_size)[::-1]
+        box_xy = (box_xy_tmp + x_y_offset) / np.array(grid_shape)[::-1]
     else:
-        box_xy = (expit(prediction[..., :2]) + x_y_offset) / np.array(grid_size)[::-1]
-    box_wh = (np.exp(prediction[..., 2:4]) * anchors) / np.array(input_dims)[::-1]
+        box_xy = (expit(prediction[..., :2]) + x_y_offset) / np.array(grid_shape)[::-1]
+    box_wh = (np.exp(prediction[..., 2:4]) * anchors) / np.array(input_shape)[::-1]
 
     # Sigmoid objectness scores
     objectness = expit(prediction[..., 4])  # p_o (objectness score)
@@ -171,21 +175,21 @@ def yolo_decode(prediction, anchors, num_classes, input_dims, scale_x_y=None, us
     return np.concatenate([box_xy, box_wh, objectness, class_scores], axis=2)
 
 
-def yolo_correct_boxes(predictions, img_shape, model_image_size):
+def yolo_correct_boxes(predictions, img_shape, model_input_shape):
     '''rescale predicition boxes back to original image shape'''
     box_xy = predictions[..., :2]
     box_wh = predictions[..., 2:4]
     objectness = np.expand_dims(predictions[..., 4], -1)
     class_scores = predictions[..., 5:]
 
-    # model_image_size & image_shape should be (height, width) format
-    model_image_size = np.array(model_image_size, dtype='float32')
+    # model_input_shape & image_shape should be (height, width) format
+    model_input_shape = np.array(model_input_shape, dtype='float32')
     image_shape = np.array(img_shape, dtype='float32')
     height, width = image_shape
 
-    new_shape = np.round(image_shape * np.min(model_image_size/image_shape))
-    offset = (model_image_size-new_shape)/2./model_image_size
-    scale = model_image_size/new_shape
+    new_shape = np.round(image_shape * np.min(model_input_shape/image_shape))
+    offset = (model_input_shape-new_shape)/2./model_input_shape
+    scale = model_input_shape/new_shape
     # reverse offset/scale to match (w,h) order
     offset = offset[..., ::-1]
     scale = scale[..., ::-1]
@@ -205,13 +209,18 @@ def yolo_correct_boxes(predictions, img_shape, model_image_size):
 
 
 
-def yolo_handle_predictions(predictions, image_shape, max_boxes=100, confidence=0.1, iou_threshold=0.4, use_cluster_nms=False, use_wbf=False):
+def yolo_handle_predictions(predictions, image_shape, num_classes, max_boxes=100, confidence=0.1, iou_threshold=0.4, use_cluster_nms=False, use_wbf=False):
     boxes = predictions[:, :, :4]
     box_confidences = np.expand_dims(predictions[:, :, 4], -1)
     box_class_probs = predictions[:, :, 5:]
 
-    # filter boxes with confidence threshold
-    box_scores = box_confidences * box_class_probs
+    # check if only 1 class for different score
+    if num_classes == 1:
+        box_scores = box_confidences
+    else:
+        box_scores = box_confidences * box_class_probs
+
+    # filter boxes with score threshold
     box_classes = np.argmax(box_scores, axis=-1)
     box_class_scores = np.max(box_scores, axis=-1)
     pos = np.where(box_class_scores >= confidence)
@@ -223,9 +232,9 @@ def yolo_handle_predictions(predictions, image_shape, max_boxes=100, confidence=
     if use_cluster_nms:
         # use Fast/Cluster NMS for boxes postprocess
         n_boxes, n_classes, n_scores = fast_cluster_nms_boxes(boxes, classes, scores, iou_threshold, confidence=confidence)
-    #elif use_wbf:
+    elif use_wbf:
         # use Weighted-Boxes-Fusion for boxes postprocess
-        #n_boxes, n_classes, n_scores = weighted_boxes_fusion([boxes], [classes], [scores], image_shape, weights=None, iou_thr=iou_threshold)
+        n_boxes, n_classes, n_scores = weighted_boxes_fusion([boxes], [classes], [scores], image_shape, weights=None, iou_thr=iou_threshold)
     else:
         # Boxes, Classes and Scores returned from NMS
         n_boxes, n_classes, n_scores = nms_boxes(boxes, classes, scores, iou_threshold, confidence=confidence)
@@ -683,13 +692,13 @@ def yolo_adjust_boxes(boxes, img_shape):
 
 
 
-def yolo3_decode(predictions, anchors, num_classes, input_dims, elim_grid_sense=False):
+def yolo3_decode(predictions, anchors, num_classes, input_shape, elim_grid_sense=False):
     """
     YOLOv3 Head to process predictions from YOLOv3 models
 
     :param num_classes: Total number of classes
     :param anchors: YOLO style anchor list for bounding box assignment
-    :param input_dims: Input dimensions of the image
+    :param input_shape: Input shape of the image
     :param predictions: A list of three tensors with shape (N, 19, 19, 255), (N, 38, 38, 255) and (N, 76, 76, 255)
     :return: A tensor with the shape (N, num_boxes, 85)
     """
@@ -706,17 +715,18 @@ def yolo3_decode(predictions, anchors, num_classes, input_dims, elim_grid_sense=
 
     results = []
     for i, prediction in enumerate(predictions):
-        results.append(yolo_decode(prediction, anchors[anchor_mask[i]], num_classes, input_dims, scale_x_y=scale_x_y[i], use_softmax=False))
+        results.append(yolo_decode(prediction, anchors[anchor_mask[i]], num_classes, input_shape, scale_x_y=scale_x_y[i], use_softmax=False))
 
     return np.concatenate(results, axis=1)
 
 
-def yolo3_postprocess_np(yolo_outputs, image_shape, anchors, num_classes, model_image_size, max_boxes=100, confidence=0.1, iou_threshold=0.4, elim_grid_sense=False):
-    predictions = yolo3_decode(yolo_outputs, anchors, num_classes, input_dims=model_image_size, elim_grid_sense=elim_grid_sense)
-    predictions = yolo_correct_boxes(predictions, image_shape, model_image_size)
+def yolo3_postprocess_np(yolo_outputs, image_shape, anchors, num_classes, model_input_shape, max_boxes=100, confidence=0.1, iou_threshold=0.4, elim_grid_sense=False):
+    predictions = yolo3_decode(yolo_outputs, anchors, num_classes, input_shape=model_input_shape, elim_grid_sense=elim_grid_sense)
+    predictions = yolo_correct_boxes(predictions, image_shape, model_input_shape)
 
     boxes, classes, scores = yolo_handle_predictions(predictions,
                                                      image_shape,
+                                                     num_classes,
                                                      max_boxes=max_boxes,
                                                      confidence=confidence,
                                                      iou_threshold=iou_threshold)
@@ -726,22 +736,11 @@ def yolo3_postprocess_np(yolo_outputs, image_shape, anchors, num_classes, model_
     return boxes, classes, scores
 
 
-def detect_person(image, model, anchors, class_names, model_image_size, person_class_name='person'):
+def detect_person(image, model, anchors, class_names, model_input_shape, person_class_name='person'):
     """
     person detection API function
     """
-    #model_path = "detector/yolo3_mobilenet_lite_320_coco.h5"
-
-    #anchors = get_anchors("detector/yolo3_anchors.txt")
-    #class_names = get_classes("detector/coco_classes.txt")
-    #model_image_size = (320, 320)
-
-
-    #custom_object_dict = get_custom_objects()
-    #model = load_model(model_path, compile=False, custom_objects=custom_object_dict)
-    #model = load_model(model_path, compile=False)
-
-    image_data = preprocess_image(image, model_image_size)
+    image_data = preprocess_image(image, model_input_shape)
     #origin image shape, in (height, width) format
     image_shape = tuple(reversed(image.size))
 
@@ -752,7 +751,7 @@ def detect_person(image, model, anchors, class_names, model_image_size, person_c
         prediction = [prediction]
 
     prediction.sort(key=lambda x: len(x[0]))
-    boxes, classes, scores = yolo3_postprocess_np(prediction, image_shape, anchors, len(class_names), model_image_size)
+    boxes, classes, scores = yolo3_postprocess_np(prediction, image_shape, anchors, len(class_names), model_input_shape)
 
     person_boxes = []
     person_scores = []
@@ -768,7 +767,17 @@ def detect_person(image, model, anchors, class_names, model_image_size, person_c
 
 if __name__ == '__main__':
     image = Image.open("example/mirror.jpg")
-    person_boxes, person_scores = detect_person(image)
+    model_path = "detector/yolo3_mobilenet_lite_320_coco.h5"
+
+    anchors = get_anchors("detector/yolo3_anchors.txt")
+    class_names = get_classes("detector/coco_classes.txt")
+    model_input_shape = (320, 320)
+
+    #custom_object_dict = get_custom_objects()
+    #model = load_model(model_path, compile=False, custom_objects=custom_object_dict)
+    model = load_model(model_path, compile=False)
+
+    person_boxes, person_scores = detect_person(image, model, anchors, class_names, model_input_shape)
 
     image = np.array(image, dtype='uint8')
     color = (0,0,0)
