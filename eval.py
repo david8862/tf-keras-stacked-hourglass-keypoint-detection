@@ -381,11 +381,10 @@ def eval_PCK(model, model_format, eval_dataset, class_names, model_input_shape, 
     output_list = []
 
     count = 0
-    batch_size = 1
     pbar = tqdm(total=eval_dataset.get_dataset_size(), desc='Eval model')
-    for image_data, gt_heatmap, metainfo in eval_dataset.generator(batch_size, num_hgstack=8, with_meta=True):
+    for image_data, gt_heatmap, metainfo in eval_dataset:
         # fetch validation data from generator, which will crop out single person area, resize to input_shape and normalize image
-        count += batch_size
+        count += 1
         if count > eval_dataset.get_dataset_size():
             break
 
@@ -437,7 +436,7 @@ def eval_PCK(model, model_format, eval_dataset, class_names, model_input_shape, 
         if save_result:
             # render keypoints skeleton on image and save result
             save_keypoints_detection(reverted_pred_keypoints, metainfo, class_names, skeleton_lines)
-        pbar.update(batch_size)
+        pbar.update(1)
     pbar.close()
 
     # save to coco result json
@@ -587,8 +586,9 @@ def main():
     model, model_format = load_eval_model(args.model_path)
 
     # prepare eval dataset
-    eval_dataset = hourglass_dataset(args.dataset_path, class_names,
-                              input_shape=model_input_shape, is_train=False)
+    eval_dataset = hourglass_dataset(args.dataset_path, batch_size=1, class_names=class_names,
+                              input_shape=model_input_shape, num_hgstack=1, is_train=False, with_meta=True)
+
 
     total_accuracy, accuracy_dict = eval_PCK(model, model_format, eval_dataset, class_names, model_input_shape, args.score_threshold, normalize, args.conf_threshold, args.save_result, skeleton_lines)
 

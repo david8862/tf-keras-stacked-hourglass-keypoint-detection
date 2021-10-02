@@ -188,11 +188,10 @@ def mpii_eval(model, model_format, eval_dataset, class_names, model_input_shape,
     eval_keypoints_array = np.zeros(shape=(eval_dataset.get_dataset_size(), len(class_names), 2), dtype=np.float)
 
     count = 0
-    batch_size = 1
     pbar = tqdm(total=eval_dataset.get_dataset_size(), desc='Eval model')
-    for image_data, gt_heatmap, metainfo in eval_dataset.generator(batch_size, num_hgstack=1, with_meta=True):
+    for image_data, gt_heatmap, metainfo in eval_dataset:
         # fetch validation data from generator, which will crop out single person area, resize to input_shape and normalize image
-        count += batch_size
+        count += 1
         if count > eval_dataset.get_dataset_size():
             break
 
@@ -225,7 +224,7 @@ def mpii_eval(model, model_format, eval_dataset, class_names, model_input_shape,
         # and fill into eval result array
         fill_eval_array(eval_keypoints_array, pred_keypoints, metainfo, model_input_shape, heatmap_shape)
 
-        pbar.update(batch_size)
+        pbar.update(1)
     pbar.close()
 
     # get PCKh metrics with eval result array and gt annotations
@@ -258,8 +257,8 @@ def main():
     model, model_format = load_eval_model(args.model_path)
 
     # prepare eval dataset
-    eval_dataset = hourglass_dataset(args.dataset_path, class_names,
-                              input_shape=model_input_shape, is_train=False)
+    eval_dataset = hourglass_dataset(args.dataset_path, batch_size=1, class_names=class_names,
+                              input_shape=model_input_shape, num_hgstack=1, is_train=False, with_meta=True)
     print('eval data size', eval_dataset.get_dataset_size())
 
     mpii_eval(model, model_format, eval_dataset, class_names, model_input_shape, args.score_threshold, args.conf_threshold)

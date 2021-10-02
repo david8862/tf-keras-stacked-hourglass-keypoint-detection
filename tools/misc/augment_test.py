@@ -37,14 +37,13 @@ def main():
     os.makedirs(args.output_path, exist_ok=True)
 
     # prepare train dataset (having augmented data process)
-    dataset = hourglass_dataset(args.dataset_path, class_names,
-                          input_shape=model_input_shape, is_train=True)
-    data_gen = dataset.generator(batch_size=1, num_hgstack=1, with_meta=True)
+    data_generator = hourglass_dataset(args.dataset_path, batch_size=1, class_names=class_names, input_shape=model_input_shape, num_hgstack=1, is_train=True, with_meta=True)
 
     pbar = tqdm(total=args.batch_size, desc='Generate augment image')
-    for i in range(args.batch_size):
+    for i, (image_data, gt_heatmap, metainfo) in enumerate(data_generator):
+        if i >= args.batch_size:
+            break
         pbar.update(1)
-        image_data, gt_heatmap, metainfo = next(data_gen)
 
         # get ground truth keypoints (transformed)
         metainfo = metainfo[0]
@@ -52,7 +51,7 @@ def main():
         gt_keypoints = metainfo['tpts']
 
         #un-normalize image
-        image = denormalize_image(image, dataset.get_color_mean())
+        image = denormalize_image(image, data_generator.get_color_mean())
 
         # form up gt keypoints dict
         gt_keypoints_dict = {}

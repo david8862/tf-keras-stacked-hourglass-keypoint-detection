@@ -3,7 +3,6 @@
 import os, sys, argparse
 import tensorflow.keras.backend as K
 #from tensorflow.keras.utils import multi_gpu_model
-from tensorflow.keras.losses import mean_squared_error
 from tensorflow.keras.callbacks import TensorBoard, TerminateOnNaN
 
 from hourglass.model import get_hourglass_model
@@ -36,11 +35,8 @@ def main(args):
     # choose model type
     if args.tiny:
         num_channels = 128
-        #input_shape = (192, 192)
     else:
         num_channels = 256
-        #input_shape = (256, 256)
-    input_shape = args.model_input_shape
 
     if args.mixed_precision:
         tf_major_version = float(tf.__version__[:3])
@@ -55,21 +51,21 @@ def main(args):
 
 
     # get train/val dataset
-    train_dataset = hourglass_dataset(args.dataset_path, class_names,
-                                input_shape=input_shape, is_train=True, matchpoints=matchpoints)
-    val_dataset = hourglass_dataset(args.dataset_path, class_names,
-                              input_shape=input_shape, is_train=False, matchpoints=None)
+    train_generator = hourglass_dataset(args.dataset_path, args.batch_size, class_names,
+                                        input_shape=args.model_input_shape,
+                                        num_hgstack=args.num_stacks,
+                                        is_train=True,
+                                        with_meta=False,
+                                        matchpoints=matchpoints)
 
-    num_train = train_dataset.get_dataset_size()
-    num_val = val_dataset.get_dataset_size()
+    num_train = train_generator.get_dataset_size()
+    num_val = len(train_generator.get_val_annotations())
 
-    train_gen = train_dataset.generator(args.batch_size, num_hgstack=args.num_stacks, with_meta=False)
-
-    model_type = get_model_type(args.num_stacks, args.mobile, args.tiny, input_shape)
+    model_type = get_model_type(args.num_stacks, args.mobile, args.tiny, args.model_input_shape)
 
     # callbacks for training process
     tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=0, write_graph=False, write_grads=False, write_images=False, update_freq='batch')
-    eval_callback = EvalCallBack(log_dir, args.dataset_path, class_names, input_shape, model_type)
+    eval_callback = EvalCallBack(log_dir, args.dataset_path, class_names, args.model_input_shape, model_type)
     checkpoint_clean = CheckpointCleanCallBack(log_dir, max_val_keep=5)
     terminate_on_nan = TerminateOnNaN()
 
@@ -91,17 +87,19 @@ def main(args):
         strategy = tf.distribute.MirroredStrategy(devices=devices_list)
         print ('Number of devices: {}'.format(strategy.num_replicas_in_sync))
         with strategy.scope():
-            # get multi-gpu train model, doesn't specify input shape
-            model = get_hourglass_model(num_classes, args.num_stacks, num_channels, mobile=args.mobile)
+            # get multi-gpu train model. you can also use "model_input_shape=None" to create a dynamic input shape model,
+            # but multiscale train/inference doesn't work for it
+            model = get_hourglass_model(num_classes, args.num_stacks, num_channels, model_input_shape=args.model_input_shape, mobile=args.mobile)
             # compile model
             model.compile(optimizer=optimizer, loss=loss_func)
     else:
-        # get normal train model, doesn't specify input shape
-        model = get_hourglass_model(num_classes, args.num_stacks, num_channels, mobile=args.mobile)
+        # get normal train model. you can also use "model_input_shape=None" to create a dynamic input shape model,
+        # but multiscale train/inference doesn't work for it
+        model = get_hourglass_model(num_classes, args.num_stacks, num_channels, model_input_shape=args.model_input_shape, mobile=args.mobile)
         # compile model
         model.compile(optimizer=optimizer, loss=loss_func)
 
-    print('Create {} Stacked Hourglass model with stack number {}, channel number {}. train input shape {}'.format('Mobile' if args.mobile else '', args.num_stacks, num_channels, input_shape))
+    print('Create {} Stacked Hourglass model with stack number {}, channel number {}. train input shape {}'.format('Mobile' if args.mobile else '', args.num_stacks, num_channels, args.model_input_shape))
     model.summary()
 
     if args.weights_path:
@@ -109,8 +107,8 @@ def main(args):
         print('Load weights {}.'.format(args.weights_path))
 
     # start training
-    print('Train on {} samples, val on {} samples, with batch size {}, input_shape {}.'.format(num_train, num_val, args.batch_size, input_shape))
-    model.fit_generator(generator=train_gen,
+    print('Train on {} samples, val on {} samples, with batch size {}, model input shape {}.'.format(num_train, num_val, args.batch_size, args.model_input_shape))
+    model.fit_generator(generator=train_generator,
                         steps_per_epoch=num_train // args.batch_size,
                         epochs=args.total_epoch,
                         initial_epoch=args.init_epoch,

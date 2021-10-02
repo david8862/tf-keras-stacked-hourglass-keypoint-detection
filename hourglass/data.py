@@ -4,6 +4,8 @@ import os, random
 import numpy as np
 from PIL import Image
 import json
+from tensorflow.keras.utils import Sequence
+
 from common.data_utils import random_horizontal_flip, random_vertical_flip, random_brightness, random_grayscale, random_chroma, random_contrast, random_sharpness, random_blur, random_histeq, random_rotate_angle, crop_single_object, rotate_single_object, crop_image, normalize_image, transform_keypoints, generate_gt_heatmap
 
 # by default, Stacked Hourglass model use output_stride = 4, which means:
@@ -14,19 +16,41 @@ from common.data_utils import random_horizontal_flip, random_vertical_flip, rand
 HG_OUTPUT_STRIDE = 4
 
 
-class hourglass_dataset(object):
-    def __init__(self, dataset_path, class_names, input_shape, is_train, matchpoints=None):
-        self.jsonfile = os.path.join(dataset_path, 'annotations.json')
-        self.is_train = is_train
-        self.imgpath = os.path.join(dataset_path, 'images')
+class hourglass_dataset(Sequence):
+    def __init__(self, dataset_path,
+                       batch_size,
+                       class_names,
+                       input_shape,
+                       num_hgstack=2,
+                       is_train=True,
+                       with_meta=False,
+                       matchpoints=None):
+        self.json_file = os.path.join(dataset_path, 'annotations.json')
+        self.image_path = os.path.join(dataset_path, 'images')
+        self.batch_size = batch_size
         self.class_names = class_names
         self.num_classes = len(class_names)
         self.input_shape = input_shape
-        # output heatmap shape should be 1/HG_OUTPUT_STRIDE of input shape
+        self.num_hgstack = num_hgstack
+        self.is_train = is_train
+        self.with_meta = with_meta
+        # output heatmap size should be 1/HG_OUTPUT_STRIDE of input size
         self.output_shape = (self.input_shape[0]//HG_OUTPUT_STRIDE, self.input_shape[1]//HG_OUTPUT_STRIDE)
         self.dataset_name = None
-        self.annotations = self._load_image_annotation()
+        self.train_annotations, self.val_annotations = self._load_image_annotation()
+        if self.is_train:
+            self.annotations = self.train_annotations
+        else:
+            self.annotations = self.val_annotations
+
         self.horizontal_matchpoints, self.vertical_matchpoints = self._get_matchpoint_list(matchpoints)
+
+        # Preallocate memory for batch input/output data
+        # input images:    batch_size * input_shape  * channel (3)
+        # output heatmaps: batch_size * output_shape * num_classes
+        self.batch_images = np.zeros(shape=(self.batch_size, self.input_shape[0], self.input_shape[1], 3), dtype=np.float32)
+        self.batch_heatmaps = np.zeros(shape=(self.batch_size, self.output_shape[0], self.output_shape[1], self.num_classes), dtype=np.float32)
+        self.batch_metainfo = list()
 
     def _get_matchpoint_list(self, matchpoints):
         horizontal_matchpoints, vertical_matchpoints = [], []
@@ -64,7 +88,7 @@ class hourglass_dataset(object):
         #  'people_index': 1.0,
         #  'numOtherPeople': 1.0,
         #  'headboxes': [[0.0, 0.0], [0.0, 0.0]]}
-        with open(self.jsonfile) as anno_file:
+        with open(self.json_file) as anno_file:
             annotations = json.load(anno_file)
 
         val_annotation, train_annotation = [], []
@@ -78,11 +102,7 @@ class hourglass_dataset(object):
                 val_annotation.append(annotations[idx])
             else:
                 train_annotation.append(annotations[idx])
-
-        if self.is_train:
-            return train_annotation
-        else:
-            return val_annotation
+        return train_annotation, val_annotation
 
     def get_dataset_name(self):
         return str(self.dataset_name)
@@ -97,52 +117,46 @@ class hourglass_dataset(object):
     def get_annotations(self):
         return self.annotations
 
-    def generator(self, batch_size, num_hgstack, with_meta=False):
-        '''
-        Input:  batch_size * input_shape  * channel (3)
-        Output: batch_size * output_shape * num_classes
-        '''
+    def get_train_annotations(self):
+        return self.train_annotations
 
-        while True:
-            if self.is_train:
-                # shuffle train data every epoch
-                random.shuffle(self.annotations)
+    def get_val_annotations(self):
+        return self.val_annotations
 
-            batch_images = np.zeros(shape=(batch_size, self.input_shape[0], self.input_shape[1], 3), dtype=np.float32)
-            batch_heatmaps = np.zeros(shape=(batch_size, self.output_shape[0], self.output_shape[1], self.num_classes), dtype=np.float32)
-            batch_metainfo = list()
+    def __len__(self):
+        return len(self.annotations) // self.batch_size
 
-            count = 0
-            for i, annotation in enumerate(self.annotations):
-                # generate input image and ground truth heatmap
-                image, gt_heatmap, meta = self.process_image(i, annotation)
+    def __getitem__(self, i):
 
-                # in case we got an empty image, bypass the sample
-                if image is None:
-                    continue
+        self.batch_metainfo = []
+        for n, annotation in enumerate(self.annotations[i*self.batch_size:(i+1)*self.batch_size]):
+            sample_index = i*self.batch_size + n
+            # generate input image and ground truth heatmap
+            image, gt_heatmap, meta = self.process_image(sample_index, annotation)
 
-                index = count % batch_size
-                # form up batch data
-                batch_images[index, :, :, :] = image
-                batch_heatmaps[index, :, :, :] = gt_heatmap
-                batch_metainfo.append(meta)
-                count = count + 1
+            # in case we got an empty image, bypass the sample
+            if image is None:
+                continue
 
-                if index == (batch_size - 1):
-                    # need to feed each hg unit the same gt heatmap,
-                    # so append a num_hgstack list
-                    out_heatmaps = []
-                    for m in range(num_hgstack):
-                        out_heatmaps.append(batch_heatmaps)
+            # form up batch data
+            self.batch_images[n, :, :, :] = image
+            self.batch_heatmaps[n, :, :, :] = gt_heatmap
+            self.batch_metainfo.append(meta)
 
-                    if with_meta:
-                        yield batch_images, out_heatmaps, batch_metainfo
-                        batch_metainfo = []
-                    else:
-                        yield batch_images, out_heatmaps
+        # need to feed each hg unit the same gt heatmap,
+        # so append a num_hgstack list
+        out_heatmaps = []
+        for m in range(self.num_hgstack):
+            out_heatmaps.append(self.batch_heatmaps)
+
+        if self.with_meta:
+            return self.batch_images, out_heatmaps, self.batch_metainfo
+        else:
+            return self.batch_images, out_heatmaps
+
 
     def process_image(self, sample_index, annotation):
-        imagefile = os.path.join(self.imgpath, annotation['img_paths'])
+        imagefile = os.path.join(self.image_path, annotation['img_paths'])
         img = Image.open(imagefile)
         # make sure image is in RGB mode with 3 channels
         if img.mode != 'RGB':
@@ -206,12 +220,12 @@ class hourglass_dataset(object):
         # 2 solutions of input data preprocess, including:
         #     1. crop single object area from origin image
         #     2. apply rotate augment
-        #     3. resize to model input shape
+        #     3. resize to model input size
         #     4. transform gt keypoints to cropped image reference
 
         ###############################
         # Option 1 (from origin repo):
-        # crop out single object area, resize to input shape and normalize image
+        # crop out single object area, resize to input size and normalize image
         image = crop_image(image, center, scale, self.input_shape, rotate_angle)
 
         # transform keypoints to cropped image reference
@@ -229,7 +243,7 @@ class hourglass_dataset(object):
             #image, transformed_keypoints = rotate_single_object(image, transformed_keypoints, rotate_angle)
 
         # convert keypoints to model output reference
-        #transformed_keypoints[:, 0:2] = transformed_keypoints[:, 0:2] / HG_OUTPUT_STRIDE
+        #transformed_keypoints[:, 0:2] = transformed_keypoints[:, 0:2] / OUTPUT_STRIDE
         ###############################
 
         #######################################################################################################
@@ -252,4 +266,9 @@ class hourglass_dataset(object):
 
     def get_keypoint_classes(self):
         return self.class_names
+
+    def on_epoch_end(self):
+        if self.is_train:
+            # Shuffle dataset for next epoch
+            random.shuffle(self.annotations)
 

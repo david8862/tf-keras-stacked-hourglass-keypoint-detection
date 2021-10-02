@@ -24,20 +24,17 @@ def post_train_quant_convert(keras_model_file, dataset_path, class_names, sample
     model = load_model(keras_model_file)
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
 
-    # get input size, assume only 1 input
-    input_size = tuple(model.input.shape.as_list()[1:3])
+    # get input shape, assume only 1 input
+    input_shape = tuple(model.input.shape.as_list()[1:3])
 
     # prepare representative dataset
-    represent_data = hourglass_dataset(dataset_path, class_names,
-                          input_size=input_size, is_train=False)
-
-    batch_size = 1
-    represent_data_gen = represent_data.generator(batch_size, num_hgstack=1, with_meta=False)
+    represent_data = hourglass_dataset(dataset_path, batch_size=1, class_names=class_names,
+                          input_shape=input_shape, num_hgstack=1, is_train=False, with_meta=False)
 
     def data_generator():
         i = 0
         #for num in range(sample_num):
-        for image, gt_heatmap in represent_data_gen:
+        for image, gt_heatmap in represent_data:
             i = i+1
             if i >= sample_num:
                 break

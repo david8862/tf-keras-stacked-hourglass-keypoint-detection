@@ -76,7 +76,7 @@ class Hourglass(object):
             self.num_channels = 128
 
         # construct model and load weights.
-        hourglass_model = get_hourglass_model(num_classes, self.num_stacks, self.num_channels, input_shape=self.model_input_shape, mobile=self.mobile)
+        hourglass_model = get_hourglass_model(num_classes, self.num_stacks, self.num_channels, model_input_shape=self.model_input_shape, mobile=self.mobile)
         hourglass_model.load_weights(weights_path, by_name=False)#, skip_mismatch=True)
         hourglass_model.summary()
         return hourglass_model
