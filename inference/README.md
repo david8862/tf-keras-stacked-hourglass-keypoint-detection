@@ -3,7 +3,164 @@
 Here are some C++ implementation of the on-device inference for trained Stacked Hourglass Networks models, including forward propagation of the model, heatmap postprocess and coordinate rescale. Now we have 2 approaches with different inference engine for that:
 
 * Tensorflow-Lite (verified on commit id: 1b8f5bc8011a1e85d7a110125c852a4f431d0f59)
-* [MNN](https://github.com/alibaba/MNN) from Alibaba (not work)
+* [MNN](https://github.com/alibaba/MNN) from Alibaba (verified on release: [1.0.0](https://github.com/alibaba/MNN/releases/tag/1.0.0))
+
+
+### MNN
+
+1. Install Python runtime and Build libMNN
+
+Refer to [MNN build guide](https://www.yuque.com/mnn/cn/build_linux), we need to prepare cmake & protobuf first for MNN build. And since MNN support both X86 & ARM platform, we can do either native compile or ARM cross-compile
+```
+# apt install cmake autoconf automake libtool ocl-icd-opencl-dev
+# wget https://github.com/google/protobuf/releases/download/v3.4.1/protobuf-cpp-3.4.1.tar.gz
+# tar xzvf protobuf-cpp-3.4.1.tar.gz
+# cd protobuf-3.4.1
+# ./autogen.sh
+# ./configure && make && make check && make install && ldconfig
+# pip install --upgrade pip && pip install --upgrade mnn
+
+# git clone https://github.com/alibaba/MNN.git <Path_to_MNN>
+# cd <Path_to_MNN>
+# ./schema/generate.sh
+# ./tools/script/get_model.sh  # optional
+# mkdir build && cd build
+# cmake [-DCMAKE_TOOLCHAIN_FILE=<cross-compile toolchain file>]
+        [-DMNN_BUILD_QUANTOOLS=ON -DMNN_BUILD_CONVERTER=ON -DMNN_BUILD_BENCHMARK=ON -DMNN_BUILD_TRAIN=ON -MNN_BUILD_TRAIN_MINI=ON -MNN_USE_OPENCV=OFF] ..
+        && make -j4
+
+### MNN OpenCL backend build
+# apt install ocl-icd-opencl-dev
+# cmake [-DCMAKE_TOOLCHAIN_FILE=<cross-compile toolchain file>]
+        [-DMNN_OPENCL=ON -DMNN_SEP_BUILD=OFF -DMNN_USE_SYSTEM_LIB=ON] ..
+        && make -j4
+```
+If you want to do cross compile for ARM platform, "CMAKE_TOOLCHAIN_FILE" should be specified
+
+"MNN_BUILD_QUANTOOLS" is for enabling MNN Quantization tool
+
+"MNN_BUILD_CONVERTER" is for enabling MNN model converter
+
+"MNN_BUILD_BENCHMARK" is for enabling on-device inference benchmark tool
+
+"MNN_BUILD_TRAIN" related are for enabling MNN training tools
+
+
+2. Build demo inference application
+```
+# cd tf-keras-stacked-hourglass-keypoint-detection/inference/MNN
+# mkdir build && cd build
+# cmake -DMNN_ROOT_PATH=<Path_to_MNN> [-DCMAKE_TOOLCHAIN_FILE=<cross-compile toolchain file>] ..
+# make
+```
+
+3. Convert trained Stacked Hourglass model to MNN model
+
+Refer to [Model dump](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection#model-dump), [Tensorflow model convert](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection#tensorflow-model-convert) and [MNN model convert](https://www.yuque.com/mnn/cn/model_convert), we need to:
+
+* dump out inference model from training checkpoint:
+
+    ```
+    # python demo.py --num_stacks=2 --mobile --weights_path=logs/<checkpoint>.h5 --classes_path=configs/coco_classes.txt --dump_model --output_model_file=model.h5
+    ```
+
+* convert keras .h5 model to tensorflow frozen pb model:
+
+    ```
+    # python keras_to_tensorflow.py
+        --input_model="path/to/keras/model.h5"
+        --output_model="path/to/save/model.pb"
+    ```
+
+* convert TF pb model to MNN model:
+
+    ```
+    # cd <Path_to_MNN>/build/
+    # ./MNNConvert -f TF --modelFile model.pb --MNNModel model.pb.mnn --bizCode MNN
+    ```
+    or
+
+    ```
+    # mnnconvert -f TF --modelFile model.pb --MNNModel model.pb.mnn
+    ```
+
+MNN support Post Training Integer quantization, so we can use its python CLI interface to do quantization on the generated .mnn model to get quantized .mnn model for ARM acceleration . A json config file [quantizeConfig.json](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/inference/MNN/configs/quantizeConfig.json) is needed to describe the feeding data:
+
+* Quantized MNN model:
+
+    ```
+    # cd <Path_to_MNN>/build/
+    # ./quantized.out model.pb.mnn model_quant.pb.mnn quantizeConfig.json
+    ```
+    or
+
+    ```
+    # mnnquant model.pb.mnn model_quant.pb.mnn quantizeConfig.json
+    ```
+
+4. Run validate script to check MNN model
+```
+# cd tf-keras-stacked-hourglass-keypoint-detection/tools/evaluation/
+# python validate_hourglass.py --model_path=model_quant.pb.mnn --classes_path=../../configs/coco_classes.txt --skeleton_path=../../configs/coco_skeleton.txt --image_file=../../example/fitness.jpg --model_input_shape=256x256 --loop_count=5
+```
+
+Visualized detection result:
+
+<p align="center">
+  <img src="../assets/dog_inference.jpg">
+</p>
+
+#### You can also use [eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection#evaluation) to do evaluation on the MNN model
+
+
+5. Run application to do inference with model, or put all the assets to your ARM board and run if you use cross-compile
+```
+# cd tf-keras-stacked-hourglass-keypoint-detection/inference/MNN/build
+# ./hourglassKeypoint -h
+Usage: hourglassKeypoint
+--mnn_model, -m: model_name.mnn
+--image, -i: image_name.jpg
+--classes, -l: classes labels for the model
+--input_mean, -b: input mean
+--input_std, -s: input standard deviation
+--threads, -t: number of threads
+--count, -c: loop model run for certain times
+--warmup_runs, -w: number of warmup runs
+
+# ./hourglassKeypoint -m model.pb.mnn -i ../../../example/fitness.jpg -l ../../../configs/coco_classes.txt -t 8 -c 10 -w 3
+image_input: name:image_input, width:256, height:256, channel:3, dim_type:CAFFE
+num_outputs: 1
+num_classes: 17
+origin image size: width:640, height:640, channel:3
+model invoke average time: 170.583000 ms
+output tensor name: 1_conv_1x1_parts/BiasAdd
+output tensor shape: width:64 , height:64, channel: 17
+heatmap shape: batch:1, width:64 , height:64, channel: 17
+Caffe format: NCHW
+batch 0:
+hourglass_postprocess time: 0.105000 ms
+prediction_list length: 17
+Keypoint Detection result:
+nose 0.283470 (310, 70)
+left_eye 0.419499 (310, 60)
+right_eye 0.333521 (290, 60)
+left_ear 0.303642 (330, 60)
+right_ear 0.046196 (270, 70)
+left_shoulder 0.637282 (380, 140)
+right_shoulder 0.740778 (260, 150)
+left_elbow 0.740789 (410, 220)
+right_elbow 0.678265 (240, 240)
+left_wrist 0.863041 (420, 300)
+right_wrist 0.549483 (240, 310)
+left_hip 0.532070 (350, 330)
+right_hip 0.475801 (290, 330)
+left_knee 0.704592 (380, 450)
+right_knee 0.748527 (280, 450)
+left_ankle 0.570860 (350, 570)
+right_ankle 0.596960 (280, 590)
+```
+Here the [classes](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/configs/mpii_classes.txt) file format are the same as used in training part
+
 
 
 ### Tensorflow-Lite

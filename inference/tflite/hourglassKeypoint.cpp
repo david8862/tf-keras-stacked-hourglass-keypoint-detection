@@ -41,6 +41,8 @@
 
 #define LOG(x) std::cerr
 
+#define HG_OUTPUT_STRIDE 4
+
 namespace hourglassKeypoint {
 
 // definition of a keypoint prediction record
@@ -149,8 +151,8 @@ void adjust_scale(std::vector<t_prediction> &prediction_list, int image_width, i
 
 
     for(auto &prediction : prediction_list) {
-        prediction.x = prediction.x * scale_width * 4;
-        prediction.y = prediction.y * scale_height * 4;
+        prediction.x = prediction.x * scale_width * HG_OUTPUT_STRIDE;
+        prediction.y = prediction.y * scale_height * HG_OUTPUT_STRIDE;
     }
 
     return;
@@ -330,6 +332,9 @@ void RunInference(Settings* s) {
       // output channel should be same as
       // keypoint class number
       assert(num_classes == output_channels);
+
+      // input/output shape should match hourglass output stride
+      assert((input_width/output_width == HG_OUTPUT_STRIDE) && (input_height/output_height == HG_OUTPUT_STRIDE));
 
       if (s->verbose) LOG(INFO) << "output tensor info: "
                                 << "name " << interpreter->tensor(output)->name << ", "

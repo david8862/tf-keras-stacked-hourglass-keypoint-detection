@@ -144,9 +144,14 @@ def validate_hourglass_model_mnn(model_path, image_file, class_names, skeleton_l
     image_size = img.size
     scale = (image_size[0] * 1.0 / model_input_shape[1], image_size[1] * 1.0 / model_input_shape[0])
 
-    # use a temp tensor to copy data
-    tmp_input = MNN.Tensor(input_shape, input_tensor.getDataType(),\
-                    image_data, input_tensor.getDimensionType())
+    # create a temp tensor to copy data,
+    # use TF NHWC layout to align with image data array
+    # TODO: currently MNN python binding have mem leak when creating MNN.Tensor
+    # from numpy array, only from tuple is good. So we convert input image to tuple
+    tmp_input_shape = (batch, height, width, channel)
+    input_elementsize = reduce(mul, tmp_input_shape)
+    tmp_input = MNN.Tensor(tmp_input_shape, input_tensor.getDataType(),\
+                    tuple(image_data.reshape(input_elementsize, -1)), MNN.Tensor_DimensionType_Tensorflow)
 
     # predict once first to bypass the model building time
     input_tensor.copyFrom(tmp_input)
@@ -176,7 +181,7 @@ def validate_hourglass_model_mnn(model_path, image_file, class_names, skeleton_l
     #tmp_output.printTensorData()
 
     output_data = np.array(tmp_output.getData(), dtype=float).reshape(output_shape)
-    # our postprocess code based on TF channel last format, so if the output format
+    # our postprocess code based on TF NHWC layout, so if the output format
     # doesn't match, we need to transpose
     if output_tensor.getDimensionType() == MNN.Tensor_DimensionType_Caffe:
         output_data = output_data.transpose((0,2,3,1))

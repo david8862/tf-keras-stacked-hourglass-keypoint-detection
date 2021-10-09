@@ -20,7 +20,7 @@ struct Settings {
   bool input_floating = false;
   bool allow_fp16 = false;
   int loop_count = 1;
-  float input_mean = 0.0f;
+  float input_mean = 127.5f;
   float input_std = 255.0f;
   std::string model_name = "./model.tflite";
   tflite::FlatBufferModel* model;

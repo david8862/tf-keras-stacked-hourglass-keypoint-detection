@@ -29,6 +29,8 @@
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb_image_resize.h"
 
+#define HG_OUTPUT_STRIDE 4
+
 using namespace MNN;
 using namespace MNN::CV;
 
@@ -47,7 +49,7 @@ struct Settings {
   int loop_count = 1;
   int number_of_threads = 4;
   int number_of_warmup_runs = 2;
-  float input_mean = 0.0f;
+  float input_mean = 127.5f;
   float input_std = 255.0f;
   std::string model_name = "./model.mnn";
   std::string input_img_name = "./sample.jpg";
@@ -66,7 +68,7 @@ double get_us(struct timeval t)
 
 void display_usage() {
     std::cout
-        << "Usage: yoloDetection\n"
+        << "Usage: hourglassKeypoint\n"
         << "--mnn_model, -m: model_name.mnn\n"
         << "--image, -i: image_name.jpg\n"
         << "--classes, -l: classes labels for the model\n"
@@ -207,51 +209,44 @@ void adjust_scale(std::vector<t_prediction> &prediction_list, int image_width, i
 
 
     for(auto &prediction : prediction_list) {
-        prediction.x = prediction.x * scale_width * 4;
-        prediction.y = prediction.y * scale_height * 4;
+        prediction.x = prediction.x * scale_width * HG_OUTPUT_STRIDE;
+        prediction.y = prediction.y * scale_height * HG_OUTPUT_STRIDE;
     }
 
     return;
 }
 
 
+// Resize image to model input shape
+uint8_t* image_resize(uint8_t* inputImage, int image_width, int image_height, int image_channel, int input_width, int input_height, int input_channel)
+{
+    // assume the data channel match
+    MNN_ASSERT(image_channel == input_channel);
+
+    uint8_t* input_image = (uint8_t*)malloc(input_height * input_width * input_channel * sizeof(uint8_t));
+    if (input_image == nullptr) {
+        MNN_PRINT("Can't alloc memory\n");
+        exit(-1);
+    }
+    stbir_resize_uint8(inputImage, image_width, image_height, 0,
+                     input_image, input_width, input_height, 0, image_channel);
+
+    return input_image;
+}
+
+
 template <class T>
-void resize(T* out, uint8_t* in, int image_width, int image_height,
-            int image_channels, int input_width, int input_height,
+void fill_data(T* out, uint8_t* in, int input_width, int input_height,
             int input_channels, Settings* s) {
-  uint8_t* resized = (uint8_t*)malloc(input_height * input_width * input_channels * sizeof(uint8_t));
-  if (resized == nullptr) {
-      MNN_PRINT("Can't alloc memory\n");
-      exit(-1);
+  auto output_number_of_pixels = input_height * input_width * input_channels;
+
+  for (int i = 0; i < output_number_of_pixels; i++) {
+    if (s->input_floating)
+      out[i] = (in[i] - s->input_mean) / s->input_std;
+    else
+      out[i] = (uint8_t)in[i];
   }
 
-  stbir_resize_uint8(in, image_width, image_height, 0,
-                     resized, input_width, input_height, 0, input_channels);
-
-  //auto output_number_of_pixels = input_height * input_width * input_channels;
-
-  //for (int i = 0; i < output_number_of_pixels; i++) {
-    //if (s->input_floating)
-      //out[i] = (resized[i] - s->input_mean) / s->input_std;
-    //else
-      //out[i] = (uint8_t)resized[i];
-  //}
-
-  std::vector<float> mean = {0.4404, 0.4440, 0.4327};
-
-  for (int h = 0; h < input_height; h++) {
-      for (int w = 0; w < input_width; w++) {
-          for (int c = 0; c < input_channels; c++) {
-              int idx = h * input_width * input_channels + w * input_channels + c;
-              if (s->input_floating)
-                  out[idx] = ((float)resized[idx] / 255.0) - mean[c];
-              else
-                  out[idx] = (uint8_t)resized[idx];
-          }
-      }
-  }
-
-  free(resized);
   return;
 }
 
@@ -263,9 +258,20 @@ void RunInference(Settings* s) {
     // create model & session
     std::shared_ptr<Interpreter> net(Interpreter::createFromFile(s->model_name.c_str()));
     ScheduleConfig config;
-    config.type  = MNN_FORWARD_AUTO;
+    config.type  = MNN_FORWARD_AUTO; //MNN_FORWARD_CPU, MNN_FORWARD_OPENCL
+    config.backupType = MNN_FORWARD_CPU;
     config.numThread = s->number_of_threads;
+
+    BackendConfig bnconfig;
+    bnconfig.memory = BackendConfig::Memory_Normal; //Memory_High, Memory_Low
+    bnconfig.power = BackendConfig::Power_Normal; //Power_High, Power_Low
+    bnconfig.precision = BackendConfig::Precision_Normal; //Precision_High, Precision_Low
+    config.backendConfig = &bnconfig;
+
     auto session = net->createSession(config);
+    // since we don't need to create other sessions any more,
+    // just release model data to save memory
+    net->releaseModel();
 
     // get input tensor info
     // assume only 1 input tensor (image_input)
@@ -273,23 +279,22 @@ void RunInference(Settings* s) {
     MNN_ASSERT(inputs.size() == 1);
     auto image_input = inputs.begin()->second;
 
-    auto shape = image_input->shape();
     int input_width = image_input->width();
     int input_height = image_input->height();
     int input_channel = image_input->channel();
-    if (input_channel == 0)
-        input_channel = 1;
-    if (input_height == 0)
-        input_height = 1;
-    if (input_width == 0)
-        input_width = 1;
-    MNN_PRINT("image_input: width:%d , height:%d, channel: %d\n", input_width, input_height, input_channel);
+    int input_dim_type = image_input->getDimensionType();
+
+    std::vector<std::string> dim_type_string = {"TENSORFLOW", "CAFFE", "CAFFE_C4"};
+
+    MNN_PRINT("image_input: name:%s, width:%d, height:%d, channel:%d, dim_type:%s\n", inputs.begin()->first.c_str(), input_width, input_height, input_channel, dim_type_string[input_dim_type].c_str());
+
     // assume the model input is square
     MNN_ASSERT(input_width == input_height);
 
-    shape[0] = 1;
-    net->resizeTensor(image_input, shape);
-    net->resizeSession(session);
+    //auto shape = image_input->shape();
+    //shape[0] = 1;
+    //net->resizeTensor(image_input, shape);
+    //net->resizeSession(session);
 
     // get output tensor info:
     // image_input: 1 x 256 x 256 x 3
@@ -316,26 +321,28 @@ void RunInference(Settings* s) {
         MNN_ERROR("Can't open %s\n", inputPath);
         return;
     }
+    MNN_PRINT("origin image size: width:%d, height:%d, channel:%d\n", image_width, image_height, image_channel);
 
-    std::vector<uint8_t> in(inputImage, inputImage + image_width * image_height * image_channel * sizeof(uint8_t));
+    // resize input image
+    uint8_t* resizeImage = image_resize(inputImage, image_width, image_height, image_channel, input_width, input_height, input_channel);
 
     // free input image
     stbi_image_free(inputImage);
-
     inputImage = nullptr;
-
-    MNN_PRINT("origin image size: width:%d, height:%d, channel:%d\n", image_width, image_height, image_channel);
 
     // assume input tensor type is float
     MNN_ASSERT(image_input->getType().code == halide_type_float);
     s->input_floating = true;
 
+    // create a host tensor for input data
+    auto dataTensor = new Tensor(image_input, Tensor::TENSORFLOW);
+    fill_data<float>(dataTensor->host<float>(), resizeImage,
+                input_width, input_height, input_channel, s);
+
     // run warm up session
     if (s->loop_count > 1)
         for (int i = 0; i < s->number_of_warmup_runs; i++) {
-            resize<float>(image_input->host<float>(), in.data(),
-                image_width, image_height, image_channel, input_width,
-                input_height, input_channel, s);
+            image_input->copyFromHostTensor(dataTensor);
             if (net->runSession(session) != NO_ERROR) {
                 MNN_PRINT("Failed to invoke MNN!\n");
             }
@@ -344,9 +351,7 @@ void RunInference(Settings* s) {
     // run model sessions to get output
     gettimeofday(&start_time, nullptr);
     for (int i = 0; i < s->loop_count; i++) {
-        resize<float>(image_input->host<float>(), in.data(),
-            image_width, image_height, image_channel, input_width,
-            input_height, input_channel, s);
+        image_input->copyFromHostTensor(dataTensor);
         if (net->runSession(session) != NO_ERROR) {
             MNN_PRINT("Failed to invoke MNN!\n");
         }
@@ -369,6 +374,9 @@ void RunInference(Settings* s) {
         // output channel should be same as
         // keypoint class number
         MNN_ASSERT(num_classes == output_channel);
+
+        // input/output shape should match hourglass output stride
+        MNN_ASSERT((input_width/output_width == HG_OUTPUT_STRIDE) && (input_height/output_height == HG_OUTPUT_STRIDE));
 
         auto dim_type = output_tensor->getDimensionType();
         if (output_tensor->getType().code != halide_type_float) {
