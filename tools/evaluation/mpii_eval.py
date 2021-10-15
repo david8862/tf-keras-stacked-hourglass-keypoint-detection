@@ -97,7 +97,8 @@ def get_headboxes_array(eval_annotations):
 
 
 def eval_PCKh(eval_keypoints_array, eval_annotations, class_names, threshold=0.5):
-    SC_BIAS = 0.6
+    # a head scale factor to adjust normalized head size
+    HEAD_SCALE_BIAS = 0.6
 
     # parse gt keypoints array, visible array and headboxes array
     # for computing PCKh
@@ -115,7 +116,7 @@ def eval_PCKh(eval_keypoints_array, eval_annotations, class_names, threshold=0.5
     # normalized head size
     headsizes = headboxes_array[1, :, :] - headboxes_array[0, :, :]
     headsizes = np.linalg.norm(headsizes, axis=0)
-    headsizes *= SC_BIAS
+    headsizes *= HEAD_SCALE_BIAS
 
     # scaled keypoints error with head size
     scale = np.multiply(headsizes, np.ones((len(keypoints_error), 1)))
@@ -260,6 +261,9 @@ def main():
     eval_dataset = hourglass_dataset(args.dataset_path, batch_size=1, class_names=class_names,
                               input_shape=model_input_shape, num_hgstack=1, is_train=False, with_meta=True)
     print('eval data size', eval_dataset.get_dataset_size())
+
+    # check if it's a MPII dataset
+    assert eval_dataset.get_dataset_name() == 'MPI', 'PCKh metric only valid for MPII dataset'
 
     mpii_eval(model, model_format, eval_dataset, class_names, model_input_shape, args.score_threshold, args.conf_threshold)
 

@@ -265,14 +265,50 @@ optional arguments:
                         coco json annotation file
 ```
 
+For MPII dataset, you can also use [mpii_eval.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/tree/master/tools/evaluation/mpii_eval.py) to get MPII PCKh metric:
+
+```
+# cd tools/evaluation && python mpii_eval.py -h
+usage: mpii_eval.py [-h] --model_path MODEL_PATH [--dataset_path DATASET_PATH]
+                    [--classes_path CLASSES_PATH]
+                    [--score_threshold SCORE_THRESHOLD]
+                    [--conf_threshold CONF_THRESHOLD]
+                    [--model_input_shape MODEL_INPUT_SHAPE]
+
+Calculate PCKh metric on MPII dataset for keypoint detection model
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --model_path MODEL_PATH
+                        path to model file
+  --dataset_path DATASET_PATH
+                        dataset path containing images and annotation file,
+                        default=../../data/mpii
+  --classes_path CLASSES_PATH
+                        path to keypoint class definitions,
+                        default=../../configs/mpii_classes.txt
+  --score_threshold SCORE_THRESHOLD
+                        score threshold for PCK evaluation, default=0.5
+  --conf_threshold CONF_THRESHOLD
+                        confidence threshold for filtering keypoint in
+                        postprocess, default=1e-06
+  --model_input_shape MODEL_INPUT_SHAPE
+                        model image input shape as <height>x<width>,
+                        default=256x256
+```
+
+<p align="center">
+  <img src="assets/PCKh.png">
+</p>
+
 The default PCK metric (score_threshold=0.5, normalize=6.4) will also be applied on validation dataset during training process for picking best checkpoints.
 
 Some experiment on MPII Human Pose dataset:
 
-| Model name | InputSize | TrainSet | TestSet | PCK@0.5 | FLOPS | Param | Speed | Ps |
-| ----- | ------ | ------ | ------ | ----- | ----- | ----- | ----- | ----- |
-| [hg_s2_256_256](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/releases/download/v1.0.1/hg_s2_256_256_mpii.tar.gz) | 256x256 | MPII | MPII | 0.83 | 20.28G | 6.57M | 20.9ms | Keras on Titan XP |
-| [hg_s2_mobile_256_256](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/releases/download/v1.0.1/hg_s2_mobile_256_256_mpii.tar.gz) | 256x256 | MPII | MPII | 0.824 | 9.37G | 2.75M | 20.8ms | Keras on Titan XP |
+| Model name | InputSize | TrainSet | TestSet | PCK@0.5 | PCKh@0.5 | FLOPS | Param | Speed | Ps |
+| ----- | ------ | ------ | ------ | ----- | ----- | ----- | -----| ----- | ----- |
+| [hg_s2_256_256](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/releases/download/v1.0.1/hg_s2_256_256_mpii.tar.gz) | 256x256 | MPII | MPII | 0.83 | 0.862 | 20.28G | 6.57M | 20.9ms | Keras on Titan XP |
+| [hg_s2_mobile_256_256](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/releases/download/v1.0.1/hg_s2_mobile_256_256_mpii.tar.gz) | 256x256 | MPII | MPII | 0.824 | 0.859 | 9.37G | 2.75M | 20.8ms | Keras on Titan XP |
 
 
 Some experiment on MSCOCO Keypoints 2017 dataset:
