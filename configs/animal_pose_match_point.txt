@@ -1,0 +1,8 @@
+right_eye,left_eye,h
+right_ear,left_ear,h
+right_front_elbow,left_front_elbow,h
+right_back_elbow,left_back_elbow,h
+right_front_knee,left_front_knee,h
+right_back_knee,left_back_knee,h
+right_front_paw,left_front_paw,h
+right_back_paw,left_back_paw,h

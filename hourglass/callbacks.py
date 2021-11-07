@@ -37,7 +37,7 @@ class EvalCallBack(Callback):
                               input_shape=self.model_input_shape, num_hgstack=1, is_train=False, with_meta=True)
 
         # record model & dataset name to draw training curve
-        with open(os.path.join(self.log_dir, 'val.txt'), 'a+') as xfile:
+        with open(os.path.join(self.log_dir, 'val.txt'), 'w+') as xfile:
             xfile.write('model:' + model_type + ';dataset:' + self.eval_dataset.get_dataset_name() + '\n')
         xfile.close()
 
