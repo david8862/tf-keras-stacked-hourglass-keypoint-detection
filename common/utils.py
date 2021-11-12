@@ -73,20 +73,20 @@ def render_skeleton(image, keypoints_dict, skeleton_lines=None, conf_threshold=0
     keypoints.
     """
     def get_color(color_pattern):
-        color = (0, 0, 255)
+        color = (255, 0, 0)
 
         if color_pattern == 'r':
-            color = (0, 0, 255)
+            color = (255, 0, 0)
         elif color_pattern == 'g':
             color = (0, 255, 0)
         elif color_pattern == 'b':
-            color = (255, 0, 0)
+            color = (0, 0, 255)
         else:
             raise ValueError('invalid color pattern')
 
         return color
 
-    def draw_line(img, start_point, end_point, color=(0, 0, 255)):
+    def draw_line(img, start_point, end_point, color=(255, 0, 0)):
         x_start, y_start, conf_start = start_point
         x_end, y_end, conf_end = end_point
 

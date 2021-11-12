@@ -50,7 +50,7 @@ def process_heatmap(heatmap, image, scale, class_names, skeleton_lines):
 def validate_hourglass_model(model_path, image_file, class_names, skeleton_lines, model_input_shape, loop_count):
     model = load_model(model_path, compile=False)
 
-    img = Image.open(image_file)
+    img = Image.open(image_file).convert('RGB')
     image = np.array(img, dtype='uint8')
     image_data = preprocess_image(img, model_input_shape)
     image_size = img.size
@@ -87,7 +87,7 @@ def validate_hourglass_model_tflite(model_path, image_file, class_names, skeleto
     if input_details[0]['dtype'] == np.float32:
         floating_model = True
 
-    img = Image.open(image_file)
+    img = Image.open(image_file).convert('RGB')
     image = np.array(img, dtype='uint8')
 
     height = input_details[0]['shape'][1]
@@ -138,7 +138,7 @@ def validate_hourglass_model_mnn(model_path, image_file, class_names, skeleton_l
     model_input_shape = (height, width)
 
     # prepare input image
-    img = Image.open(image_file)
+    img = Image.open(image_file).convert('RGB')
     image = np.array(img, dtype='uint8')
     image_data = preprocess_image(img, model_input_shape)
     image_size = img.size
@@ -218,7 +218,7 @@ def validate_hourglass_model_onnx(model_path, image_file, class_names, skeleton_
     assert len(output_tensors) == 1, 'invalid output tensor number.'
 
     # prepare input image
-    img = Image.open(image_file)
+    img = Image.open(image_file).convert('RGB')
     image_data = preprocess_image(img, model_input_shape)
     image_size = img.size
     scale = (image_size[0] * 1.0 / model_input_shape[1], image_size[1] * 1.0 / model_input_shape[0])
@@ -261,7 +261,7 @@ def validate_hourglass_model_pb(model_path, image_file, class_names, skeleton_li
     # assume only 1 input tensor for image
     input_tensor_name = 'graph/image_input:0'
 
-    img = Image.open(image_file)
+    img = Image.open(image_file).convert('RGB')
     image = np.array(img, dtype='uint8')
     image_data = preprocess_image(img, model_input_shape)
     image_size = img.size

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import os, sys, argparse
 import numpy as np
+from PIL import Image
 import cv2
 import json
 from tqdm import tqdm
@@ -66,7 +67,8 @@ def dataset_visualize(dataset_path, class_names, skeleton_lines):
         pbar.update(1)
         # load image file
         imagefile = os.path.join(image_path, annotation['img_paths'])
-        image = cv2.imread(imagefile)
+        image = Image.open(imagefile).convert('RGB')
+        image = np.array(image, dtype='uint8')
 
         # get center, keypoints and scale
         # center, keypoints point format: (x, y)
@@ -91,7 +93,7 @@ def dataset_visualize(dataset_path, class_names, skeleton_lines):
         xmax = int(min(width, center[0] + (obj_size // 2)))
         ymin = int(max(0, center[1] - (obj_size // 2)))
         ymax = int(min(height, center[1] + (obj_size // 2)))
-        cv2.rectangle(image, (xmin, ymin), (xmax, ymax), color=(0, 0, 255), thickness=1, lineType=cv2.LINE_AA)
+        cv2.rectangle(image, (xmin, ymin), (xmax, ymax), color=(255, 0, 0), thickness=1, lineType=cv2.LINE_AA)
 
         # if have valid head bbox info, show out
         if 'headboxes' in annotation.keys():
@@ -99,7 +101,7 @@ def dataset_visualize(dataset_path, class_names, skeleton_lines):
             head_ymin = int(max(0, annotation['headboxes'][0][1]))
             head_xmax = int(min(width, annotation['headboxes'][1][0]))
             head_ymax = int(min(height, annotation['headboxes'][1][1]))
-            cv2.rectangle(image, (head_xmin, head_ymin), (head_xmax, head_ymax), color=(0, 0, 255), thickness=1, lineType=cv2.LINE_AA)
+            cv2.rectangle(image, (head_xmin, head_ymin), (head_xmax, head_ymax), color=(255, 0, 0), thickness=1, lineType=cv2.LINE_AA)
 
         # if there's other people info in annotation, show them in white
         if 'numOtherPeople' in annotation.keys():
@@ -114,12 +116,15 @@ def dataset_visualize(dataset_path, class_names, skeleton_lines):
         # show image file info
         image_file_name = os.path.basename(imagefile)
         cv2.putText(image, image_file_name+'({}/{})'.format(i+1, len(annotations))+val_label,
-                    (3,15),
+                    (3, 15),
                     cv2.FONT_HERSHEY_PLAIN,
                     fontScale=1,
-                    color=(0, 0, 255),
+                    color=(255, 0, 0),
                     thickness=1,
                     lineType=cv2.LINE_AA)
+
+        # convert to BGR for cv2.imshow
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
         cv2.namedWindow("Image", 0)
         cv2.imshow("Image", image)

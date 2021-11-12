@@ -188,7 +188,7 @@ def save_keypoints_detection(pred_keypoints, metainfo, class_names, skeleton_lin
     os.makedirs(result_dir, exist_ok=True)
 
     image_name = metainfo['name']
-    image = Image.open(image_name)
+    image = Image.open(image_name).convert('RGB')
     image_array = np.array(image, dtype='uint8')
 
     gt_keypoints = metainfo['pts']
