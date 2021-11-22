@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import time
-from PIL import Image
-import cv2
 import os, sys, argparse
+import time
+import glob
 import numpy as np
+from PIL import Image
 from operator import mul
 from functools import reduce
 import MNN
 import onnxruntime
 from tensorflow.keras.models import load_model
+import tensorflow.keras.backend as K
 from tensorflow.lite.python import interpreter as interpreter_wrapper
 import tensorflow as tf
 
@@ -22,7 +23,7 @@ from common.utils import get_classes, get_skeleton, render_skeleton
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
-def process_heatmap(heatmap, image, scale, class_names, skeleton_lines):
+def process_heatmap(heatmap, image_file, image, scale, class_names, skeleton_lines, output_path):
     start = time.time()
     # parse out predicted keypoint from heatmap
     keypoints = post_process_heatmap_simple(heatmap)
@@ -43,13 +44,17 @@ def process_heatmap(heatmap, image, scale, class_names, skeleton_lines):
     image_array = np.array(image, dtype='uint8')
     image_array = render_skeleton(image_array, keypoints_dict, skeleton_lines)
 
-    Image.fromarray(image_array).show()
+    # save or show result
+    if output_path:
+        os.makedirs(output_path, exist_ok=True)
+        output_file = os.path.join(output_path, os.path.basename(image_file))
+        Image.fromarray(image_array).save(output_file)
+    else:
+        Image.fromarray(image_array).show()
     return
 
 
-def validate_hourglass_model(model_path, image_file, class_names, skeleton_lines, model_input_shape, loop_count):
-    model = load_model(model_path, compile=False)
-
+def validate_hourglass_model(model, image_file, class_names, skeleton_lines, model_input_shape, loop_count, output_path):
     img = Image.open(image_file).convert('RGB')
     image = np.array(img, dtype='uint8')
     image_data = preprocess_image(img, model_input_shape)
@@ -69,14 +74,11 @@ def validate_hourglass_model(model_path, image_file, class_names, skeleton_lines
     if isinstance(prediction, list):
         prediction = prediction[-1]
     heatmap = prediction[0]
-    process_heatmap(heatmap, img, scale, class_names, skeleton_lines)
+    process_heatmap(heatmap, image_file, img, scale, class_names, skeleton_lines, output_path)
     return
 
 
-def validate_hourglass_model_tflite(model_path, image_file, class_names, skeleton_lines, loop_count):
-    interpreter = interpreter_wrapper.Interpreter(model_path=model_path)
-    interpreter.allocate_tensors()
-
+def validate_hourglass_model_tflite(interpreter, image_file, class_names, skeleton_lines, loop_count, output_path):
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
 
@@ -115,14 +117,11 @@ def validate_hourglass_model_tflite(model_path, image_file, class_names, skeleto
         prediction.append(output_data)
 
     heatmap = prediction[-1][0]
-    process_heatmap(heatmap, img, scale, class_names, skeleton_lines)
+    process_heatmap(heatmap, image_file, img, scale, class_names, skeleton_lines, output_path)
     return
 
 
-def validate_hourglass_model_mnn(model_path, image_file, class_names, skeleton_lines, loop_count):
-    interpreter = MNN.Interpreter(model_path)
-    session = interpreter.createSession()
-
+def validate_hourglass_model_mnn(interpreter, session, image_file, class_names, skeleton_lines, loop_count, output_path):
     # assume only 1 input tensor for image
     input_tensor = interpreter.getSessionInput(session)
     # get input shape
@@ -189,14 +188,12 @@ def validate_hourglass_model_mnn(model_path, image_file, class_names, skeleton_l
         raise ValueError('unsupported output tensor dimension type')
 
     heatmap = output_data[0]
-    process_heatmap(heatmap, img, scale, class_names, skeleton_lines)
+    process_heatmap(heatmap, image_file, img, scale, class_names, skeleton_lines, output_path)
 
 
-def validate_hourglass_model_onnx(model_path, image_file, class_names, skeleton_lines, loop_count):
-    sess = onnxruntime.InferenceSession(model_path)
-
+def validate_hourglass_model_onnx(model, image_file, class_names, skeleton_lines, loop_count, output_path):
     input_tensors = []
-    for i, input_tensor in enumerate(sess.get_inputs()):
+    for i, input_tensor in enumerate(model.get_inputs()):
         input_tensors.append(input_tensor)
     # assume only 1 input tensor for image
     assert len(input_tensors) == 1, 'invalid input tensor number.'
@@ -212,7 +209,7 @@ def validate_hourglass_model_onnx(model_path, image_file, class_names, skeleton_
     model_input_shape = (height, width)
 
     output_tensors = []
-    for i, output_tensor in enumerate(sess.get_outputs()):
+    for i, output_tensor in enumerate(model.get_outputs()):
         output_tensors.append(output_tensor)
     # assume only 1 output tensor
     assert len(output_tensors) == 1, 'invalid output tensor number.'
@@ -230,11 +227,11 @@ def validate_hourglass_model_onnx(model_path, image_file, class_names, skeleton_
     feed = {input_tensors[0].name: image_data}
 
     # predict once first to bypass the model building time
-    prediction = sess.run(None, feed)
+    prediction = model.run(None, feed)
 
     start = time.time()
     for i in range(loop_count):
-        prediction = sess.run(None, feed)
+        prediction = model.run(None, feed)
 
     end = time.time()
     print("Average Inference time: {:.8f}ms".format((end - start) * 1000 /loop_count))
@@ -243,11 +240,11 @@ def validate_hourglass_model_onnx(model_path, image_file, class_names, skeleton_
     if isinstance(prediction, list):
         prediction = prediction[-1]
     heatmap = prediction[0]
-    process_heatmap(heatmap, img, scale, class_names, skeleton_lines)
+    process_heatmap(heatmap, image_file, img, scale, class_names, skeleton_lines, output_path)
     return
 
 
-def validate_hourglass_model_pb(model_path, image_file, class_names, skeleton_lines, model_input_shape, loop_count):
+def validate_hourglass_model_pb(model, image_file, class_names, skeleton_lines, model_input_shape, loop_count, output_path):
     # check tf version to be compatible with TF 2.x
     global tf
     if tf.__version__.startswith('2'):
@@ -267,27 +264,6 @@ def validate_hourglass_model_pb(model_path, image_file, class_names, skeleton_li
     image_size = img.size
     scale = (image_size[0] * 1.0 / model_input_shape[1], image_size[1] * 1.0 / model_input_shape[0])
 
-    #load frozen pb graph
-    def load_pb_graph(model_path):
-        # We parse the graph_def file
-        with tf.gfile.GFile(model_path, "rb") as f:
-            graph_def = tf.GraphDef()
-            graph_def.ParseFromString(f.read())
-
-        # We load the graph_def in the default graph
-        with tf.Graph().as_default() as graph:
-            tf.import_graph_def(
-                graph_def,
-                input_map=None,
-                return_elements=None,
-                name="graph",
-                op_dict=None,
-                producer_op_list=None
-            )
-        return graph
-
-    graph = load_pb_graph(model_path)
-
     # We can list operations, op.values() gives you a list of tensors it produces
     # op.name gives you the name. These op also include input & output node
     # print output like:
@@ -298,21 +274,21 @@ def validate_hourglass_model_pb(model_path, image_file, class_names, skeleton_li
     # NOTE: prefix/Placeholder/inputs_placeholder is only op's name.
     # tensor name should be like prefix/Placeholder/inputs_placeholder:0
 
-    #for op in graph.get_operations():
+    #for op in model.get_operations():
         #print(op.name, op.values())
 
-    image_input = graph.get_tensor_by_name(input_tensor_name)
-    output_tensor = graph.get_tensor_by_name(output_tensor_name)
+    image_input = model.get_tensor_by_name(input_tensor_name)
+    output_tensor = model.get_tensor_by_name(output_tensor_name)
 
     # predict once first to bypass the model building time
-    with tf.Session(graph=graph) as sess:
+    with tf.Session(graph=model) as sess:
         prediction = sess.run(output_tensor, feed_dict={
             image_input: image_data
         })
 
     start = time.time()
     for i in range(loop_count):
-            with tf.Session(graph=graph) as sess:
+            with tf.Session(graph=model) as sess:
                 prediction = sess.run(output_tensor, feed_dict={
                     image_input: image_data
                 })
@@ -320,17 +296,74 @@ def validate_hourglass_model_pb(model_path, image_file, class_names, skeleton_li
     print("Average Inference time: {:.8f}ms".format((end - start) * 1000 /loop_count))
 
     heatmap = prediction[0]
-    process_heatmap(heatmap, img, scale, class_names, skeleton_lines)
+    process_heatmap(heatmap, image_file, img, scale, class_names, skeleton_lines, output_path)
+
+
+
+#load TF 1.x frozen pb graph
+def load_graph(model_path):
+    # check tf version to be compatible with TF 2.x
+    global tf
+    if tf.__version__.startswith('2'):
+        import tensorflow.compat.v1 as tf
+        tf.disable_eager_execution()
+
+    # We parse the graph_def file
+    with tf.gfile.GFile(model_path, "rb") as f:
+        graph_def = tf.GraphDef()
+        graph_def.ParseFromString(f.read())
+
+    # We load the graph_def in the default graph
+    with tf.Graph().as_default() as graph:
+        tf.import_graph_def(
+            graph_def,
+            input_map=None,
+            return_elements=None,
+            name="graph",
+            op_dict=None,
+            producer_op_list=None
+        )
+    return graph
+
+
+def load_val_model(model_path):
+    # support of tflite model
+    if model_path.endswith('.tflite'):
+        from tensorflow.lite.python import interpreter as interpreter_wrapper
+        model = interpreter_wrapper.Interpreter(model_path=model_path)
+        model.allocate_tensors()
+
+    # support of MNN model
+    elif model_path.endswith('.mnn'):
+        model = MNN.Interpreter(model_path)
+
+    # support of TF 1.x frozen pb model
+    elif model_path.endswith('.pb'):
+        model = load_graph(model_path)
+
+    # support of ONNX model
+    elif model_path.endswith('.onnx'):
+        model = onnxruntime.InferenceSession(model_path)
+
+    # normal keras h5 model
+    elif model_path.endswith('.h5'):
+        model = load_model(model_path, compile=False)
+        K.set_learning_phase(0)
+    else:
+        raise ValueError('invalid model file')
+
+    return model
 
 
 def main():
     parser = argparse.ArgumentParser(description='validate Hourglass model (h5/pb/onnx/tflite/mnn) with image')
     parser.add_argument('--model_path', help='model file to predict', type=str, required=True)
-    parser.add_argument('--image_file', help='image file to predict', type=str, required=True)
+    parser.add_argument('--image_path', help='image file or directory to predict', type=str, required=True)
     parser.add_argument('--classes_path', help='path to class definitions, default=%(default)s', type=str, required=False, default='../../configs/mpii_classes.txt')
     parser.add_argument('--skeleton_path', help='path to keypoint skeleton definitions, default=%(default)s', type=str, required=False, default=None)
     parser.add_argument('--model_input_shape', help='model image input shape as <height>x<width>, default=%(default)s', type=str, default='256x256')
     parser.add_argument('--loop_count', help='loop inference for certain times', type=int, default=1)
+    parser.add_argument('--output_path', help='output path to save predict result, default=%(default)s', type=str, required=False, default=None)
 
     args = parser.parse_args()
 
@@ -345,23 +378,38 @@ def main():
     model_input_shape = (int(height), int(width))
 
 
-    # support of tflite model
-    if args.model_path.endswith('.tflite'):
-        validate_hourglass_model_tflite(args.model_path, args.image_file, class_names, skeleton_lines, args.loop_count)
-    # support of MNN model
-    elif args.model_path.endswith('.mnn'):
-        validate_hourglass_model_mnn(args.model_path, args.image_file, class_names, skeleton_lines, args.loop_count)
-    ## support of TF 1.x frozen pb model
-    elif args.model_path.endswith('.pb'):
-        validate_hourglass_model_pb(args.model_path, args.image_file, class_names, skeleton_lines, model_input_shape, args.loop_count)
-    # support of ONNX model
-    elif args.model_path.endswith('.onnx'):
-        validate_hourglass_model_onnx(args.model_path, args.image_file, class_names, skeleton_lines, args.loop_count)
-    ## normal keras h5 model
-    elif args.model_path.endswith('.h5'):
-        validate_hourglass_model(args.model_path, args.image_file, class_names, skeleton_lines, model_input_shape, args.loop_count)
+    model = load_val_model(args.model_path)
+    if args.model_path.endswith('.mnn'):
+        #MNN inference engine need create session
+        session = model.createSession()
+
+    # get image file list or single image
+    if os.path.isdir(args.image_path):
+        image_files = glob.glob(os.path.join(args.image_path, '*'))
+        assert args.output_path, 'need to specify output path if you use image directory as input.'
     else:
-        raise ValueError('invalid model file')
+        image_files = [args.image_path]
+
+
+    # loop the sample list to predict on each image
+    for image_file in image_files:
+        # support of tflite model
+        if args.model_path.endswith('.tflite'):
+            validate_hourglass_model_tflite(model, image_file, class_names, skeleton_lines, args.loop_count, args.output_path)
+        # support of MNN model
+        elif args.model_path.endswith('.mnn'):
+            validate_hourglass_model_mnn(model, session, image_file, class_names, skeleton_lines, args.loop_count, args.output_path)
+        ## support of TF 1.x frozen pb model
+        elif args.model_path.endswith('.pb'):
+            validate_hourglass_model_pb(model, image_file, class_names, skeleton_lines, model_input_shape, args.loop_count, args.output_path)
+        # support of ONNX model
+        elif args.model_path.endswith('.onnx'):
+            validate_hourglass_model_onnx(model, image_file, class_names, skeleton_lines, args.loop_count, args.output_path)
+        ## normal keras h5 model
+        elif args.model_path.endswith('.h5'):
+            validate_hourglass_model(model, image_file, class_names, skeleton_lines, model_input_shape, args.loop_count, args.output_path)
+        else:
+            raise ValueError('invalid model file')
 
 
 if __name__ == '__main__':
