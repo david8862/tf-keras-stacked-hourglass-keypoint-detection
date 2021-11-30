@@ -126,6 +126,8 @@ Install requirements on Ubuntu 16.04/18.04:
                 * Row format: `key_point_name1,key_point_name2,flip_type` (no space). Keypoint name should be aligned with classes name file;
                 * Flip type: h-horizontal; v-vertical.
 
+    After dataset is ready, you can manually review it with [dataset_visualize.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/tools/dataset_converter/dataset_visualize.py)
+
 2. [train.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/train.py)
 
 ```

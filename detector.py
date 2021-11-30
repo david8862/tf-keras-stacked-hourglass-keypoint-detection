@@ -764,6 +764,21 @@ def detect_person(image, model, anchors, class_names, model_input_shape, person_
     return person_boxes, person_scores
 
 
+def get_square_box(box, image_size):
+    '''expand person bbox to square, for further keypoint input'''
+    xmin, ymin, xmax, ymax = map(int, box)
+
+    center_x = (xmin + xmax) // 2
+    center_y = (ymin + ymax) // 2
+    length = max(xmax-xmin, ymax-ymin)
+
+    square_xmin = max(center_x - length//2, 0)
+    square_xmax = min(center_x + length//2, image_size[0])
+    square_ymin = max(center_y - length//2, 0)
+    square_ymax = min(center_y + length//2, image_size[1])
+
+    return square_xmin, square_ymin, square_xmax, square_ymax
+
 
 if __name__ == '__main__':
     image = Image.open("example/mirror.jpg")
