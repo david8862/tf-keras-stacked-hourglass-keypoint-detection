@@ -398,7 +398,6 @@ def main():
                 keypoints = predict_hourglass_model_tflite(model, person_image, args.loop_count)
             # support of MNN model
             elif args.model_path.endswith('.mnn'):
-                #validate_hourglass_model_mnn(model, session, image_file, class_names, skeleton_lines, args.loop_count, args.output_path)
                 keypoints = predict_hourglass_model_mnn(model, session, person_image, args.loop_count)
             ## support of TF 1.x frozen pb model
             elif args.model_path.endswith('.pb'):
@@ -427,6 +426,7 @@ def main():
 
             # draw keypoint skeleton on image
             image_array = render_skeleton(image_array, keypoints_dict, skeleton_lines)
+        image.close()
 
         # save or show result
         if args.output_path:

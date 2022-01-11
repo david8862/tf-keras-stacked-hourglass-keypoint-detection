@@ -128,6 +128,15 @@ Install requirements on Ubuntu 16.04/18.04:
 
     After dataset is ready, you can manually review it with [dataset_visualize.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/tools/dataset_converter/dataset_visualize.py)
 
+    **P.S.** You can use [labelme](https://github.com/wkentaro/labelme) to annotate your image with keypoint label. Following steps can generate labelme format json annotations on a video file (from [video_annotation](https://github.com/wkentaro/labelme/tree/main/examples/video_annotation)). You can then convert them to our json annotation file:
+
+    ```
+    # pip install video-cli
+    # video-toimg your_video.mp4  # this creates your_video/ directory
+    # ls your_video/
+    # labelme your_video --labels configs/coco_classes.txt --nodata --keep-prev
+    ```
+
 2. [train.py](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/train.py)
 
 ```
