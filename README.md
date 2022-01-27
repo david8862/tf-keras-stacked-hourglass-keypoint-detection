@@ -4,7 +4,7 @@
 
 ## Introduction
 
-An end-to-end single-object keypoint estimation pipeline with Stacked-Hourglass models. Code base is inherited from [Stacked_Hourglass_Network_Keras](https://github.com/yuanyuanli85/Stacked_Hourglass_Network_Keras) and also refer official implementation [pose-hg-train](https://github.com/princeton-vl/pose-hg-train) & pytorch version [pytorch-pose](https://github.com/bearpaw/pytorch-pose). This repo is implemented with tf.keras for model training and TFLite for on-device deployment. Support different model type and technologies:
+An end-to-end single-object keypoint estimation pipeline with Stacked-Hourglass models. Code base is inherited from [Stacked_Hourglass_Network_Keras](https://github.com/yuanyuanli85/Stacked_Hourglass_Network_Keras) and also refer official implementation [pose-hg-train](https://github.com/princeton-vl/pose-hg-train) & pytorch version [pytorch-pose](https://github.com/bearpaw/pytorch-pose). This repo is implemented with tf.keras for model training and MNN/TFLite for on-device deployment. Support different model type and technologies:
 
 #### Model Type
 - [x] Standard stacked hourglass model
