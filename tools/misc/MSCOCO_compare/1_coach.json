@@ -1,0 +1,230 @@
+{
+  "version": "4.6.0",
+  "flags": {"critical": true},
+  "shapes": [
+    {
+      "label": "person",
+      "points": [
+        [
+          290.0,
+          502.0
+        ],
+        [
+          548.0,
+          996.0
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "rectangle",
+      "flags": {}
+    },
+    {
+      "label": "nose",
+      "points": [
+        [
+          415.0,
+          550.6875
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "left_eye",
+      "points": [
+        [
+          425.9375,
+          538.1875
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "right_eye",
+      "points": [
+        [
+          405.625,
+          536.625
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "left_ear",
+      "points": [
+        [
+          432.1875,
+          552.25
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "right_ear",
+      "points": [
+        [
+          386.875,
+          544.4375
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "left_shoulder",
+      "points": [
+        [
+          437.125,
+          617.78125
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "right_shoulder",
+      "points": [
+        [
+          355.0625,
+          594.625
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "left_elbow",
+      "points": [
+        [
+          506.5625,
+          633.21875
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "right_elbow",
+      "points": [
+        [
+          291.9375,
+          571.46875
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "left_wrist",
+      "points": [
+        [
+          475.0,
+          579.1875
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "right_wrist",
+      "points": [
+        [
+          348.75,
+          548.3125
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "left_hip",
+      "points": [
+        [
+          433.75,
+          733.5
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "right_hip",
+      "points": [
+        [
+          383.75,
+          750.6875
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "left_knee",
+      "points": [
+        [
+          527.5,
+          696.0
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {"check": true}
+    },
+    {
+      "label": "right_knee",
+      "points": [
+        [
+          394.6875,
+          863.1875
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "left_ankle",
+      "points": [
+        [
+          535.3125,
+          806.9375
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "right_ankle",
+      "points": [
+        [
+          396.25,
+          953.8125
+        ]
+      ],
+      "group_id": 2,
+      "shape_type": "point",
+      "flags": {}
+    }
+  ],
+  "imagePath": "1_coach.jpg",
+  "imageData": null,
+  "imageHeight": 1024,
+  "imageWidth": 576
+}
