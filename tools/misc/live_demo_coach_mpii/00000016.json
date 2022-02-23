@@ -1,0 +1,218 @@
+{
+  "version": "4.6.0",
+  "flags": {},
+  "shapes": [
+    {
+      "label": "person",
+      "points": [
+        [
+          126,
+          211
+        ],
+        [
+          412,
+          951
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "rectangle",
+      "flags": {}
+    },
+    {
+      "label": "right_ankle",
+      "points": [
+        [
+          225.0,
+          881.625
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "right_knee",
+      "points": [
+        [
+          225.0,
+          719.75
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "right_hip",
+      "points": [
+        [
+          243.0,
+          557.875
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "left_hip",
+      "points": [
+        [
+          315.0,
+          546.3125
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "left_knee",
+      "points": [
+        [
+          333.0,
+          719.75
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "left_ankle",
+      "points": [
+        [
+          342.0,
+          881.625
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "plevis",
+      "points": [
+        [
+          279.0,
+          546.3125
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "thorax",
+      "points": [
+        [
+          270.0,
+          372.875
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "upper_neck",
+      "points": [
+        [
+          270.0,
+          349.75
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "head_top",
+      "points": [
+        [
+          261.0,
+          234.125
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "right_wrist",
+      "points": [
+        [
+          171.0,
+          476.9375
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "right_elbow",
+      "points": [
+        [
+          153.0,
+          453.8125
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "right_shoulder",
+      "points": [
+        [
+          207.0,
+          384.4375
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "left_shoulder",
+      "points": [
+        [
+          333.0,
+          372.875
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "left_elbow",
+      "points": [
+        [
+          396.0,
+          442.25
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "point",
+      "flags": {}
+    },
+    {
+      "label": "left_wrist",
+      "points": [
+        [
+          378.0,
+          476.9375
+        ]
+      ],
+      "group_id": 0,
+      "shape_type": "point",
+      "flags": {}
+    }
+  ],
+  "imagePath": "00000016.jpg",
+  "imageData": null,
+  "imageHeight": 1024,
+  "imageWidth": 576
+}

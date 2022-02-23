@@ -17,7 +17,7 @@ class CheckpointCleanCallBack(Callback):
     def on_epoch_end(self, epoch, logs=None):
 
         # filter out val checkpoints
-        val_checkpoints = sorted(glob.glob(os.path.join(self.checkpoint_dir, 'ep*.h5')))
+        val_checkpoints = sorted(glob.glob(os.path.join(self.checkpoint_dir, 'ep*.h5')), reverse=False)
 
         # keep latest val checkpoints
         for val_checkpoint in val_checkpoints[:-(self.max_val_keep)]:

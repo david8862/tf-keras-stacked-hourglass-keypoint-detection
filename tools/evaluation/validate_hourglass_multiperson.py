@@ -354,7 +354,7 @@ def main():
     # prepare detection model and configs
     det_anchors = get_anchors(DET_ANCHORS_PATH)
     det_class_names = get_classes(DET_CLASSES_PATH)
-    det_model = load_model(DET_MODEL_PATH)
+    det_model = load_model(DET_MODEL_PATH, compile=False)
     det_model_input_shape = DET_MODEL_INPUT_SHAPE
 
     # prepare hourglass model
