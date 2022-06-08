@@ -10,6 +10,7 @@ from tqdm import tqdm
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
 from common.utils import get_classes, get_skeleton, render_skeleton
 from common.data_utils import MPII_SCALE_REFERENCE
+from tools.dataset_converter.coco_annotation import get_objpos
 
 
 def render_other_people(image, annotation, class_names, skeleton_lines):
@@ -51,6 +52,9 @@ def render_other_people(image, annotation, class_names, skeleton_lines):
         ymin = int(max(0, center[1] - (obj_size // 2)))
         ymax = int(min(height, center[1] + (obj_size // 2)))
         cv2.rectangle(image, (xmin, ymin), (xmax, ymax), color=(255, 255, 255), thickness=1, lineType=cv2.LINE_AA)
+
+        # obj pos point
+        cv2.circle(image, center=(int(center[0]), int(center[1])), color=(255, 255, 255), radius=7, thickness=-1)
 
     return image
 
@@ -94,6 +98,13 @@ def dataset_visualize(dataset_path, class_names, skeleton_lines):
         ymin = int(max(0, center[1] - (obj_size // 2)))
         ymax = int(min(height, center[1] + (obj_size // 2)))
         cv2.rectangle(image, (xmin, ymin), (xmax, ymax), color=(255, 0, 0), thickness=1, lineType=cv2.LINE_AA)
+
+        # obj pos point
+        cv2.circle(image, center=(int(center[0]), int(center[1])), color=(255, 0, 0), radius=7, thickness=-1)
+
+        # draw average keypoints with green
+        average_keypoints = tuple(map(int, get_objpos(keypoints)))
+        cv2.circle(image, center=average_keypoints, color=(0, 255, 0), radius=7, thickness=-1)
 
         # if have valid head bbox info, show out
         if 'headboxes' in annotation.keys():

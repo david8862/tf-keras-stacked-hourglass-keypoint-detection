@@ -117,6 +117,9 @@ Install requirements on Ubuntu 16.04/18.04:
             }
             ```
             Put the annotation file to `data/<dataset_name>` and rename to "annotations.json"
+
+            **NOTE**: for `objpos` annotation, you can use average of the valid keypoints coordinate, or center of the bbox if you have bbox info
+
         * Create keypoint config file: classes name file, match point file
 
             * Classes name file format could refer to  [coco_classes.txt](https://github.com/david8862/tf-keras-stacked-hourglass-keypoint-detection/blob/master/configs/coco_classes.txt). Keypoint order should be aligned with "joint_self" field in annotation json file
