@@ -409,12 +409,23 @@ void RunInference(Settings* s) {
     // Rescale the prediction back to original image
     adjust_scale(prediction_list, image_width, image_height, input_width, input_height);
 
-
     // Show detection result
     MNN_PRINT("Keypoint Detection result:\n");
     for(auto prediction : prediction_list) {
         MNN_PRINT("%s %f (%d, %d)\n", classes[prediction.class_index].c_str(), prediction.confidence, int(prediction.x), int(prediction.y));
     }
+
+    // Release buffer memory
+    if (resizeImage) {
+        free(resizeImage);
+        resizeImage = nullptr;
+    }
+
+    delete dataTensor;
+
+    // Release session and model
+    net->releaseSession(session);
+    //net->releaseModel();
 
     return;
 }
