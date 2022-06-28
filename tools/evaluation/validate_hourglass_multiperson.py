@@ -97,15 +97,24 @@ def predict_hourglass_model_tflite(interpreter, image, loop_count):
     return keypoints
 
 
-def predict_hourglass_model_mnn(interpreter, session, image, loop_count):
+def predict_hourglass_model_mnn(interpreter, session, image, class_names, loop_count):
     # assume only 1 input tensor for image
     input_tensor = interpreter.getSessionInput(session)
-    # get input shape
-    input_shape = input_tensor.getShape()
-    if input_tensor.getDimensionType() == MNN.Tensor_DimensionType_Tensorflow:
-        batch, height, width, channel = input_shape
-    elif input_tensor.getDimensionType() == MNN.Tensor_DimensionType_Caffe:
-        batch, channel, height, width = input_shape
+
+    # get & resize input shape
+    input_shape = list(input_tensor.getShape())
+    if input_shape[0] == 0:
+        input_shape[0] = 1
+        interpreter.resizeTensor(input_tensor, tuple(input_shape))
+        interpreter.resizeSession(session)
+
+    # check if input layout is NHWC or NCHW
+    if input_shape[1] == 3:
+        print("NCHW input layout")
+        batch, channel, height, width = input_shape  #NCHW
+    elif input_shape[-1] == 3:
+        print("NHWC input layout")
+        batch, height, width, channel = input_shape  #NHWC
     else:
         # should be MNN.Tensor_DimensionType_Caffe_C4, unsupported now
         raise ValueError('unsupported input tensor dimension type')
@@ -141,6 +150,14 @@ def predict_hourglass_model_mnn(interpreter, session, image, loop_count):
     output_shape = output_tensor.getShape()
     output_elementsize = reduce(mul, output_shape)
 
+    # check if output layout is NHWC or NCHW
+    if output_shape[1] == len(class_names):
+        print("NCHW output layout")
+    elif output_shape[-1] == len(class_names):
+        print("NHWC output layout")
+    else:
+        raise ValueError('invalid output layout or shape')
+
     assert output_tensor.getDataType() == MNN.Halide_Type_Float
 
     # copy output tensor to host, for further postprocess
@@ -154,7 +171,7 @@ def predict_hourglass_model_mnn(interpreter, session, image, loop_count):
     output_data = np.array(tmp_output.getData(), dtype=float).reshape(output_shape)
     # our postprocess code based on TF NHWC layout, so if the output format
     # doesn't match, we need to transpose
-    if output_tensor.getDimensionType() == MNN.Tensor_DimensionType_Caffe:
+    if output_tensor.getDimensionType() == MNN.Tensor_DimensionType_Caffe and output_shape[1] == len(class_names): # double check if it's NCHW format
         output_data = output_data.transpose((0,2,3,1))
     elif output_tensor.getDimensionType() == MNN.Tensor_DimensionType_Caffe_C4:
         raise ValueError('unsupported output tensor dimension type')
@@ -166,7 +183,7 @@ def predict_hourglass_model_mnn(interpreter, session, image, loop_count):
     return keypoints
 
 
-def predict_hourglass_model_onnx(model, image, loop_count):
+def predict_hourglass_model_onnx(model, image, class_names, loop_count):
     input_tensors = []
     for i, input_tensor in enumerate(model.get_inputs()):
         input_tensors.append(input_tensor)
@@ -189,6 +206,14 @@ def predict_hourglass_model_onnx(model, image, loop_count):
     # assume only 1 output tensor
     assert len(output_tensors) == 1, 'invalid output tensor number.'
 
+    # check if output layout is NHWC or NCHW
+    if output_tensors[0].shape[1] == len(class_names):
+        print("NCHW output layout")
+    elif output_tensors[0].shape[-1] == len(class_names):
+        print("NHWC output layout")
+    else:
+        raise ValueError('invalid output layout or shape')
+
     # prepare input image
     image_data = preprocess_image(image, model_input_shape)
 
@@ -207,6 +232,10 @@ def predict_hourglass_model_onnx(model, image, loop_count):
 
     end = time.time()
     print("Average Inference time: {:.8f}ms".format((end - start) * 1000 /loop_count))
+
+    if output_tensors[0].shape[1] == len(class_names):
+        # transpose predict mask for NCHW layout
+        prediction = [p.transpose((0,2,3,1)) for p in prediction]
 
     # check to handle multi-output model
     if isinstance(prediction, list):
@@ -398,13 +427,13 @@ def main():
                 keypoints = predict_hourglass_model_tflite(model, person_image, args.loop_count)
             # support of MNN model
             elif args.model_path.endswith('.mnn'):
-                keypoints = predict_hourglass_model_mnn(model, session, person_image, args.loop_count)
+                keypoints = predict_hourglass_model_mnn(model, session, person_image, class_names, args.loop_count)
             ## support of TF 1.x frozen pb model
             elif args.model_path.endswith('.pb'):
                 keypoints = predict_hourglass_model_pb(model, person_image, model_input_shape, args.loop_count)
             # support of ONNX model
             elif args.model_path.endswith('.onnx'):
-                keypoints = predict_hourglass_model_onnx(model, person_image, args.loop_count)
+                keypoints = predict_hourglass_model_onnx(model, person_image, class_names, args.loop_count)
             ## normal keras h5 model
             elif args.model_path.endswith('.h5'):
                 keypoints = predict_hourglass_model(model, person_image, model_input_shape, args.loop_count)

@@ -269,9 +269,6 @@ void RunInference(Settings* s) {
     config.backendConfig = &bnconfig;
 
     auto session = net->createSession(config);
-    // since we don't need to create other sessions any more,
-    // just release model data to save memory
-    net->releaseModel();
 
     // get input tensor info
     // assume only 1 input tensor (image_input)
@@ -282,7 +279,7 @@ void RunInference(Settings* s) {
     int input_width = image_input->width();
     int input_height = image_input->height();
     int input_channel = image_input->channel();
-    int input_dim_type = image_input->getDimensionType();
+    auto input_dim_type = image_input->getDimensionType();
 
     std::vector<std::string> dim_type_string = {"TENSORFLOW", "CAFFE", "CAFFE_C4"};
 
@@ -291,10 +288,14 @@ void RunInference(Settings* s) {
     // assume the model input is square
     MNN_ASSERT(input_width == input_height);
 
-    //auto shape = image_input->shape();
-    //shape[0] = 1;
-    //net->resizeTensor(image_input, shape);
-    //net->resizeSession(session);
+    auto shape = image_input->shape();
+    shape[0] = 1;
+    net->resizeTensor(image_input, shape);
+    net->resizeSession(session);
+
+    // since we don't need to create other sessions any more,
+    // just release model data to save memory
+    net->releaseModel();
 
     // get output tensor info:
     // image_input: 1 x 256 x 256 x 3
@@ -363,13 +364,13 @@ void RunInference(Settings* s) {
     // Copy output tensors to host, for further postprocess
     std::vector<std::shared_ptr<Tensor>> heatmaps;
     for(auto output : outputs) {
-        MNN_PRINT("output tensor name: %s\n", output.first.c_str());
         auto output_tensor = output.second;
 
         int output_width = output_tensor->width();
         int output_height = output_tensor->height();
         int output_channel = output_tensor->channel();
-        MNN_PRINT("output tensor shape: width:%d , height:%d, channel: %d\n", output_width, output_height, output_channel);
+        auto output_dim_type = output_tensor->getDimensionType();
+        MNN_PRINT("output tensor: name:%s, width:%d, height:%d, channel:%d, dim_type:%s\n", output.first.c_str(), output_width, output_height, output_channel, dim_type_string[output_dim_type].c_str());
 
         // output channel should be same as
         // keypoint class number
@@ -378,11 +379,11 @@ void RunInference(Settings* s) {
         // input/output shape should match hourglass output stride
         MNN_ASSERT((input_width/output_width == HG_OUTPUT_STRIDE) && (input_height/output_height == HG_OUTPUT_STRIDE));
 
-        auto dim_type = output_tensor->getDimensionType();
+        //auto dim_type = output_tensor->getDimensionType();
         if (output_tensor->getType().code != halide_type_float) {
-            dim_type = Tensor::TENSORFLOW;
+            output_dim_type = Tensor::TENSORFLOW;
         }
-        std::shared_ptr<Tensor> output_user(new Tensor(output_tensor, dim_type));
+        std::shared_ptr<Tensor> output_user(new Tensor(output_tensor, output_dim_type));
         output_tensor->copyToHostTensor(output_user.get());
         heatmaps.emplace_back(output_user);
     }

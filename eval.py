@@ -272,7 +272,7 @@ def hourglass_predict_pb(model, image_data):
     return heatmap
 
 
-def hourglass_predict_onnx(model, image_data):
+def hourglass_predict_onnx(model, image_data, class_names):
     input_tensors = []
     for i, input_tensor in enumerate(model.get_inputs()):
         input_tensors.append(input_tensor)
@@ -285,12 +285,30 @@ def hourglass_predict_onnx(model, image_data):
     else:
         batch, height, width, channel = input_tensors[0].shape  #NHWC
 
+    output_tensors = []
+    for i, output_tensor in enumerate(model.get_outputs()):
+        output_tensors.append(output_tensor)
+    # assume only 1 output tensor
+    assert len(output_tensors) == 1, 'invalid output tensor number.'
+
+    # check if output layout is NHWC or NCHW
+    #if output_tensors[0].shape[1] == len(class_names):
+        #print("NCHW output layout")
+    #elif output_tensors[0].shape[-1] == len(class_names):
+        #print("NHWC output layout")
+    #else:
+        #raise ValueError('invalid output layout or shape')
+
     if input_tensors[0].shape[1] == 3:
         # transpose image for NCHW layout
         image_data = image_data.transpose((0,3,1,2))
 
     feed = {input_tensors[0].name: image_data}
     prediction = model.run(None, feed)
+
+    if output_tensors[0].shape[1] == len(class_names):
+        # transpose predict mask for NCHW layout
+        prediction = [p.transpose((0,2,3,1)) for p in prediction]
 
     # check to handle multi-output model
     if isinstance(prediction, list):
@@ -299,15 +317,22 @@ def hourglass_predict_onnx(model, image_data):
     return heatmap
 
 
-def hourglass_predict_mnn(interpreter, session, image_data):
+def hourglass_predict_mnn(interpreter, session, image_data, class_names):
     # assume only 1 input tensor for image
     input_tensor = interpreter.getSessionInput(session)
-    # get input shape
-    input_shape = input_tensor.getShape()
-    if input_tensor.getDimensionType() == MNN.Tensor_DimensionType_Tensorflow:
-        batch, height, width, channel = input_shape
-    elif input_tensor.getDimensionType() == MNN.Tensor_DimensionType_Caffe:
-        batch, channel, height, width = input_shape
+
+    # get & resize input shape
+    input_shape = list(input_tensor.getShape())
+    if input_shape[0] == 0:
+        input_shape[0] = 1
+        interpreter.resizeTensor(input_tensor, tuple(input_shape))
+        interpreter.resizeSession(session)
+
+    # check if input layout is NHWC or NCHW
+    if input_shape[1] == 3:
+        batch, channel, height, width = input_shape  #NCHW
+    elif input_shape[-1] == 3:
+        batch, height, width, channel = input_shape  #NHWC
     else:
         # should be MNN.Tensor_DimensionType_Caffe_C4, unsupported now
         raise ValueError('unsupported input tensor dimension type')
@@ -328,6 +353,14 @@ def hourglass_predict_mnn(interpreter, session, image_data):
     output_tensor = interpreter.getSessionOutput(session)
     output_shape = output_tensor.getShape()
 
+    # check if output layout is NHWC or NCHW
+    #if output_shape[1] == len(class_names):
+        #print("NCHW output layout")
+    #elif output_shape[-1] == len(class_names):
+        #print("NHWC output layout")
+    #else:
+        #raise ValueError('invalid output layout or shape')
+
     assert output_tensor.getDataType() == MNN.Halide_Type_Float
 
     # copy output tensor to host, for further postprocess
@@ -341,7 +374,7 @@ def hourglass_predict_mnn(interpreter, session, image_data):
     output_data = np.array(tmp_output.getData(), dtype=float).reshape(output_shape)
     # our postprocess code based on TF NHWC layout, so if the output format
     # doesn't match, we need to transpose
-    if output_tensor.getDimensionType() == MNN.Tensor_DimensionType_Caffe:
+    if output_tensor.getDimensionType() == MNN.Tensor_DimensionType_Caffe and output_shape[1] == len(class_names): # double check if it's NCHW format
         output_data = output_data.transpose((0,2,3,1))
     elif output_tensor.getDimensionType() == MNN.Tensor_DimensionType_Caffe_C4:
         raise ValueError('unsupported output tensor dimension type')
@@ -412,13 +445,13 @@ def eval_PCK(model, model_format, eval_dataset, class_names, model_input_shape, 
             heatmap = hourglass_predict_tflite(model, image_data)
         # support of MNN model
         elif model_format == 'MNN':
-            heatmap = hourglass_predict_mnn(model, session, image_data)
+            heatmap = hourglass_predict_mnn(model, session, image_data, class_names)
         # support of TF 1.x frozen pb model
         elif model_format == 'PB':
             heatmap = hourglass_predict_pb(model, image_data)
         # support of ONNX model
         elif model_format == 'ONNX':
-            heatmap = hourglass_predict_onnx(model, image_data)
+            heatmap = hourglass_predict_onnx(model, image_data, class_names)
         # normal keras h5 model
         elif model_format == 'H5':
             heatmap = hourglass_predict_keras(model, image_data)

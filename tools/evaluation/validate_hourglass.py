@@ -124,12 +124,21 @@ def validate_hourglass_model_tflite(interpreter, image_file, class_names, skelet
 def validate_hourglass_model_mnn(interpreter, session, image_file, class_names, skeleton_lines, loop_count, output_path):
     # assume only 1 input tensor for image
     input_tensor = interpreter.getSessionInput(session)
-    # get input shape
-    input_shape = input_tensor.getShape()
-    if input_tensor.getDimensionType() == MNN.Tensor_DimensionType_Tensorflow:
-        batch, height, width, channel = input_shape
-    elif input_tensor.getDimensionType() == MNN.Tensor_DimensionType_Caffe:
-        batch, channel, height, width = input_shape
+
+    # get & resize input shape
+    input_shape = list(input_tensor.getShape())
+    if input_shape[0] == 0:
+        input_shape[0] = 1
+        interpreter.resizeTensor(input_tensor, tuple(input_shape))
+        interpreter.resizeSession(session)
+
+    # check if input layout is NHWC or NCHW
+    if input_shape[1] == 3:
+        print("NCHW input layout")
+        batch, channel, height, width = input_shape  #NCHW
+    elif input_shape[-1] == 3:
+        print("NHWC input layout")
+        batch, height, width, channel = input_shape  #NHWC
     else:
         # should be MNN.Tensor_DimensionType_Caffe_C4, unsupported now
         raise ValueError('unsupported input tensor dimension type')
@@ -169,6 +178,14 @@ def validate_hourglass_model_mnn(interpreter, session, image_file, class_names, 
     output_shape = output_tensor.getShape()
     output_elementsize = reduce(mul, output_shape)
 
+    # check if output layout is NHWC or NCHW
+    if output_shape[1] == len(class_names):
+        print("NCHW output layout")
+    elif output_shape[-1] == len(class_names):
+        print("NHWC output layout")
+    else:
+        raise ValueError('invalid output layout or shape')
+
     assert output_tensor.getDataType() == MNN.Halide_Type_Float
 
     # copy output tensor to host, for further postprocess
@@ -182,7 +199,7 @@ def validate_hourglass_model_mnn(interpreter, session, image_file, class_names, 
     output_data = np.array(tmp_output.getData(), dtype=float).reshape(output_shape)
     # our postprocess code based on TF NHWC layout, so if the output format
     # doesn't match, we need to transpose
-    if output_tensor.getDimensionType() == MNN.Tensor_DimensionType_Caffe:
+    if output_tensor.getDimensionType() == MNN.Tensor_DimensionType_Caffe and output_shape[1] == len(class_names): # double check if it's NCHW format
         output_data = output_data.transpose((0,2,3,1))
     elif output_tensor.getDimensionType() == MNN.Tensor_DimensionType_Caffe_C4:
         raise ValueError('unsupported output tensor dimension type')
@@ -214,6 +231,14 @@ def validate_hourglass_model_onnx(model, image_file, class_names, skeleton_lines
     # assume only 1 output tensor
     assert len(output_tensors) == 1, 'invalid output tensor number.'
 
+    # check if output layout is NHWC or NCHW
+    if output_tensors[0].shape[1] == len(class_names):
+        print("NCHW output layout")
+    elif output_tensors[0].shape[-1] == len(class_names):
+        print("NHWC output layout")
+    else:
+        raise ValueError('invalid output layout or shape')
+
     # prepare input image
     img = Image.open(image_file).convert('RGB')
     image_data = preprocess_image(img, model_input_shape)
@@ -235,6 +260,10 @@ def validate_hourglass_model_onnx(model, image_file, class_names, skeleton_lines
 
     end = time.time()
     print("Average Inference time: {:.8f}ms".format((end - start) * 1000 /loop_count))
+
+    if output_tensors[0].shape[1] == len(class_names):
+        # transpose predict mask for NCHW layout
+        prediction = [p.transpose((0,2,3,1)) for p in prediction]
 
     # check to handle multi-output model
     if isinstance(prediction, list):
