@@ -159,7 +159,7 @@ void adjust_scale(std::vector<t_prediction> &prediction_list, int image_width, i
 }
 
 
-template <class T>
+template <typename T>
 void resize(T* out, uint8_t* in, int image_width, int image_height,
             int image_channels, int wanted_width, int wanted_height,
             int wanted_channels, Settings* s) {
