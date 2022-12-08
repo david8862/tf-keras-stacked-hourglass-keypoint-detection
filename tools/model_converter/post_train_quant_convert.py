@@ -21,7 +21,7 @@ from common.utils import get_classes
 def post_train_quant_convert(keras_model_file, dataset_path, class_names, sample_num, output_file):
     #custom_object_dict = get_custom_objects(custom_objects_string)
 
-    model = load_model(keras_model_file)
+    model = load_model(keras_model_file, compile=False)
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
 
     # get input shape, assume only 1 input
