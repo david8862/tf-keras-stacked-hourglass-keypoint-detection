@@ -24,7 +24,7 @@ from keypoints_compare import keypoints_compare, person_action_check, SIMILARITY
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
 from annotate_keypoints_multiperson import predict_hourglass_model, predict_hourglass_model_tflite, predict_hourglass_model_mnn, predict_hourglass_model_onnx, predict_hourglass_model_pb, load_val_model, append_info_to_json
 from hourglass.postprocess import HG_OUTPUT_STRIDE, post_process_heatmap, post_process_heatmap_simple
-from hourglass.utils import preprocess_image, get_classes, get_skeleton, render_skeleton
+from hourglass.utils import preprocess_image, get_classes, get_skeleton, render_skeleton, optimize_tf_gpu
 from detector import detect_person, get_anchors, get_square_box
 
 DET_ANCHORS_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'detector', 'yolo3_anchors.txt')
@@ -33,6 +33,8 @@ DET_MODEL_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..',
 DET_MODEL_INPUT_SHAPE = (320, 320)
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+optimize_tf_gpu(tf, K)
 
 
 def parse_json_data(json_data, class_names):

@@ -19,6 +19,10 @@ from detector import detect_person, get_anchors, get_square_box
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
+import tensorflow as tf
+optimize_tf_gpu(tf, K)
+
+
 default_config = {
         "num_stacks": 2,
         "mobile" : False,

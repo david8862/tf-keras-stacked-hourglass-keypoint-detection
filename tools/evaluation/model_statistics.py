@@ -10,8 +10,8 @@ import tensorflow.keras.backend as K
 from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Input
 
-#sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
-#from common.utils import get_custom_objects
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
+from common.utils import optimize_tf_gpu
 
 # check tf version to be compatible with TF 2.x
 if tf.__version__.startswith('2'):
@@ -19,6 +19,9 @@ if tf.__version__.startswith('2'):
     tf.disable_eager_execution()
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+optimize_tf_gpu(tf, K)
+
 
 def clever_format(value, format_string="%.2f"):
     """

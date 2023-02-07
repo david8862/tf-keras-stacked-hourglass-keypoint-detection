@@ -18,9 +18,11 @@ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 
 from hourglass.data import HG_OUTPUT_STRIDE
 from hourglass.postprocess import post_process_heatmap, post_process_heatmap_simple
 from common.data_utils import preprocess_image
-from common.utils import get_classes, get_skeleton, render_skeleton
+from common.utils import get_classes, get_skeleton, render_skeleton, optimize_tf_gpu
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+optimize_tf_gpu(tf, K)
 
 
 def process_heatmap(heatmap, image_file, image, scale, class_names, skeleton_lines, output_path):

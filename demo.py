@@ -17,6 +17,10 @@ from common.utils import get_classes, get_skeleton, render_skeleton, optimize_tf
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
+import tensorflow as tf
+optimize_tf_gpu(tf, K)
+
+
 default_config = {
         "num_stacks": 2,
         "mobile" : False,
