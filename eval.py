@@ -129,7 +129,8 @@ def draw_plot_func(dictionary, n_classes, window_title, plot_title, x_label, out
           if i == (len(sorted_values)-1): # largest bar
               adjust_axes(r, t, fig, axes)
     # set window title
-    fig.canvas.set_window_title(window_title)
+    if fig.canvas.manager is not None:
+        fig.canvas.manager.set_window_title(window_title)
     # write classes in y axis
     tick_font_size = 12
     plt.yticks(range(n_classes), sorted_keys, fontsize=tick_font_size)
@@ -415,7 +416,13 @@ def get_result_dict(pred_keypoints, metainfo):
 def eval_PCK(model, model_format, eval_dataset, class_names, model_input_shape, score_threshold, normalize, conf_threshold, save_result=False, skeleton_lines=None):
     if model_format == 'MNN':
         #MNN inference engine need create session
-        session = model.createSession()
+        session_config = \
+        {
+          'backend': 'CPU',  #'CPU'/'OPENCL'/'OPENGL'/'VULKAN'/'METAL'/'TRT'/'CUDA'/'HIAI'
+          'precision': 'high',  #'normal'/'low'/'high'/'lowBF'
+          'numThread': 2
+        }
+        session = model.createSession(session_config)
 
     succeed_dict = {class_name: 0 for class_name in class_names}
     fail_dict = {class_name: 0 for class_name in class_names}

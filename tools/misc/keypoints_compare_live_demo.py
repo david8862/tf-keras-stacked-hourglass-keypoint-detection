@@ -180,7 +180,13 @@ def user_thread_func(args):
     model = load_val_model(args.model_path)
     if args.model_path.endswith('.mnn'):
         #MNN inference engine need create session
-        session = model.createSession()
+        session_config = \
+        {
+          'backend': 'CPU',  #'CPU'/'OPENCL'/'OPENGL'/'VULKAN'/'METAL'/'TRT'/'CUDA'/'HIAI'
+          'precision': 'high',  #'normal'/'low'/'high'/'lowBF'
+          'numThread': 2
+        }
+        session = model.createSession(session_config)
 
     # capture user video from web camera
     vid = cv2.VideoCapture(0)
