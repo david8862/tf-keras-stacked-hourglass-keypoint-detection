@@ -3,7 +3,7 @@ scipy
 scikit-image
 opencv-python
 opencv-contrib-python
-tensorflow-gpu
+tensorflow
 tensorflow-model-optimization
 matplotlib
 tqdm

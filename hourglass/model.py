@@ -17,9 +17,9 @@ def get_hourglass_model(num_classes, num_stacks, num_channels, model_input_shape
 
     # prepare input tensor
     if model_input_shape:
-        input_tensor = Input(shape=(model_input_shape[0], model_input_shape[1], 3), name='image_input')
+        input_tensor = Input(shape=(model_input_shape[0], model_input_shape[1], 3), batch_size=None, name='image_input')
     else:
-        input_tensor = Input(shape=(None, None, 3), name='image_input')
+        input_tensor = Input(shape=(None, None, 3), batch_size=None, name='image_input')
 
     # front module, input to 1/4 resolution
     front_features = create_front_module(input_tensor, num_channels, bottleneck)
