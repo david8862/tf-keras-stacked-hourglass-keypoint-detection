@@ -9,7 +9,6 @@ from tensorflow.keras.models import load_model
 import tensorflow.keras.backend as K
 import tensorflow as tf
 import MNN
-import onnxruntime
 
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
 from hourglass.data import hourglass_dataset
