@@ -202,6 +202,10 @@ Following is a reference training config cmd:
 ```
 # python train.py --num_stacks=2 --mobile --dataset_path=data/mscoco_2017/ --classes_path=configs/coco_classes.txt --matchpoint_path=configs/coco_match_point.txt
 ```
+or training on GPU 0, 1 and 2, if you have several GPUs on your host/server:
+```
+# CUDA_VISIBLE_DEVICES=0,1,2 python train.py --num_stacks=2 --mobile --dataset_path=data/mscoco_2017/ --classes_path=configs/coco_classes.txt --matchpoint_path=configs/coco_match_point.txt
+```
 
 Checkpoints during training could be found at `logs/000/`. Choose a best one as result
 
