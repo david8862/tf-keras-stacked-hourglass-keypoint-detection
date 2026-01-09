@@ -749,7 +749,7 @@ def detect_person(image, model, anchors, class_names, model_input_shape, person_
     image_shape = tuple(reversed(image.size))
 
     # predict result
-    prediction = model.predict([image_data])
+    prediction = model.predict([image_data], verbose=0)
 
     if type(prediction) is not list:
         prediction = [prediction]

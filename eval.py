@@ -218,7 +218,7 @@ def save_keypoints_detection(pred_keypoints, metainfo, class_names, skeleton_lin
 
 
 def hourglass_predict_keras(model, image_data):
-    prediction = model.predict(image_data)
+    prediction = model.predict(image_data, verbose=0)
 
     # check to handle multi-output model
     if isinstance(prediction, list):

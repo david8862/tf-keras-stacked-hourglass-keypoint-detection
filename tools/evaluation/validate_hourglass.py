@@ -64,11 +64,11 @@ def validate_hourglass_model(model, image_file, class_names, skeleton_lines, mod
     scale = (image_size[0] * 1.0 / model_input_shape[1], image_size[1] * 1.0 / model_input_shape[0])
 
     # predict once first to bypass the model building time
-    model.predict(image_data)
+    model.predict(image_data, verbose=0)
 
     start = time.time()
     for i in range(loop_count):
-        prediction = model.predict(image_data)
+        prediction = model.predict(image_data, verbose=0)
     end = time.time()
     print("Average Inference time: {:.8f}ms".format((end - start) * 1000 /loop_count))
 

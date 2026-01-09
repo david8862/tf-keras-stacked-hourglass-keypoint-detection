@@ -21,7 +21,7 @@ import tensorflow as tf
 optimize_tf_gpu(tf, K)
 
 
-def main(args):
+def train(args):
     log_dir = 'logs/000'
     os.makedirs(log_dir, exist_ok=True)
 
@@ -121,8 +121,7 @@ def main(args):
     return
 
 
-
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     # Model definition options
     parser.add_argument("--num_stacks", type=int, required=False, default=2,
@@ -168,4 +167,8 @@ if __name__ == "__main__":
     height, width = args.model_input_shape.split('x')
     args.model_input_shape = (int(height), int(width))
 
-    main(args)
+    train(args)
+
+
+if __name__ == '__main__':
+    main()

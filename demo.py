@@ -101,7 +101,7 @@ class Hourglass(object):
 
     def predict(self, image_data):
         # get final predict heatmap
-        prediction = self.hourglass_model.predict(image_data)
+        prediction = self.hourglass_model.predict(image_data, verbose=0)
         if isinstance(prediction, list):
             prediction = prediction[-1]
         heatmap = prediction[0]

@@ -207,7 +207,7 @@ class Hourglass(object):
 
     def predict(self, image_data):
         # get final predict heatmap
-        prediction = self.hourglass_model.predict(image_data)
+        prediction = self.hourglass_model.predict(image_data, verbose=0)
         if isinstance(prediction, list):
             prediction = prediction[-1]
         heatmap = prediction[0]
@@ -220,7 +220,7 @@ class Hourglass(object):
 
     def batch_predict(self, image_data):
         # get batch predict heatmap
-        prediction = self.hourglass_model.predict_on_batch(image_data)
+        prediction = self.hourglass_model.predict_on_batch(image_data, verbose=0)
         if isinstance(prediction, list):
             prediction = prediction[-1]
 
